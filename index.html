@@ -1,0 +1,850 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tele · Parent dashboard</title>
+<style>
+  :root { --teal:#0E7C7B; --red:#C62828; --ink:#1B1B1F; --muted:#5f6368; --bg:#f4f7f7; --card:#fff; --amber:#8a5a00; --amberbg:#fff4d6; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--teal); color:#fff; padding:12px 20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  header .brand { font-weight:700; font-size:18px; }
+  header .who { opacity:.85; font-size:14px; }
+  header .spacer { flex:1; }
+  main { max-width:980px; margin:0 auto; padding:20px; }
+  .card { background:var(--card); border-radius:12px; padding:18px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:16px; }
+  .hidden { display:none !important; }
+  .banner { padding:12px 20px; background:#fff4d6; color:#5c3d00; border-bottom:1px solid #f0d78c; font-size:14px; }
+  input, select, button { font:inherit; }
+  input[type=text], input[type=email], input[type=password], input[type=tel], input[type=number], select {
+    width:100%; padding:10px 12px; border:1px solid #c9d2d2; border-radius:8px; background:#fff; }
+  label { display:block; font-size:14px; color:var(--muted); }
+  label input { margin-top:4px; }
+  button { padding:10px 16px; border:0; border-radius:8px; background:var(--teal); color:#fff; cursor:pointer; }
+  button.secondary { background:#e8eeee; color:var(--ink); }
+  button.danger { background:var(--red); }
+  button:disabled { opacity:.5; cursor:default; }
+  .stack { display:flex; flex-direction:column; gap:10px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0; }
+  .tabs button { background:#e8eeee; color:var(--ink); }
+  .tabs button.active { background:var(--teal); color:#fff; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid #e6ecec; vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; background:#e8eeee; }
+  .pill.missed { background:#fde2e2; color:#8e1b1b; }
+  .pill.incoming { background:#e0f2f1; color:#004d40; }
+  .pill.outgoing { background:#e3edff; color:#1a3d8f; }
+  .alert { border-left:5px solid var(--amber); background:var(--amberbg); padding:12px 14px; border-radius:8px; margin-bottom:10px; }
+  .alert.sos { border-left-color:var(--red); background:#fde8e8; }
+  .alert.info { border-left-color:var(--teal); background:#e0f2f1; }
+  .muted { color:var(--muted); font-size:13px; }
+  .ok { color:#0a7a3a; font-weight:600; }
+  .no { color:var(--red); font-weight:600; }
+  .msg-hidden { color:var(--muted); font-style:italic; }
+  .msg-body { white-space:pre-wrap; }
+  .empty { color:var(--muted); padding:12px 0; }
+  .code { font-size:40px; letter-spacing:8px; font-weight:700; font-family:ui-monospace, Menlo, monospace; margin:8px 0; }
+  .tablewrap { overflow-x:auto; }
+  #map { height:380px; border-radius:10px; background:#e8eeee; margin-top:10px; }
+  #locFallback { margin-top:10px; }
+  @media (max-width:640px) { .hide-sm { display:none; } }
+
+  details.source { margin-top:24px; }
+  details.source > summary { cursor:pointer; font-weight:600; padding:12px 0; color:var(--teal); }
+  .srcwrap { display:grid; grid-template-columns: 260px 1fr; gap:12px; margin-top:12px; }
+  .srclist { display:flex; flex-direction:column; gap:4px; max-height:560px; overflow:auto; }
+  .srclist button { background:#e8eeee; color:var(--ink); text-align:left; font-size:12px; font-family:ui-monospace, Menlo, monospace; word-break:break-all; }
+  .srclist button.active { background:var(--teal); color:#fff; }
+  pre.srccode { background:#0f1718; color:#e6f2f1; padding:14px; border-radius:8px; overflow:auto; max-height:560px; font-size:12px; line-height:1.45; margin:0; white-space:pre; }
+  @media (max-width:760px) { .srcwrap { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">🛡 Tele</span>
+  <span class="who" id="whoami"></span>
+  <span class="spacer"></span>
+  <button id="btnSignOut" class="secondary hidden">Sign out</button>
+</header>
+
+<div id="demoBanner" class="banner hidden">
+  Demo mode: this shows sample data. To see your child's real call log and texts, connect Firebase (see README).
+</div>
+
+<main>
+  <!-- SIGN IN -->
+  <section id="viewAuth" class="card hidden" style="max-width:420px;margin:40px auto;">
+    <h2 style="margin-top:0">Parent sign in</h2>
+    <p class="muted">Tele shows the call log and texts from your child's phone only to you. Your child's phone shows a permanent supervision notice at all times.</p>
+    <form id="formAuth" class="stack">
+      <input type="email" id="email" placeholder="Email" required autocomplete="email">
+      <input type="password" id="password" placeholder="Password (6+ characters)" required minlength="6" autocomplete="current-password">
+      <button type="submit">Sign in</button>
+      <button type="button" id="btnSignUp" class="secondary">Create parent account</button>
+    </form>
+    <p id="authError" class="no"></p>
+    <div id="demoAuth" class="hidden stack">
+      <button type="button" id="btnDemo">Open demo dashboard</button>
+    </div>
+  </section>
+
+  <!-- CREATE FAMILY -->
+  <section id="viewSetup" class="card hidden" style="max-width:520px;margin:40px auto;">
+    <h2 style="margin-top:0">Create your family</h2>
+    <p class="muted">This creates a private family space. Next, you link your child's phone with a 6-digit code.</p>
+    <form id="formFamily" class="stack">
+      <input type="text" id="familyName" placeholder="Family name, e.g. Mugisha family" maxlength="80" required>
+      <button type="submit">Create family</button>
+    </form>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section id="viewApp" class="hidden">
+    <div class="card">
+      <div class="row">
+        <label style="min-width:110px">Child's phone</label>
+        <select id="deviceSelect" style="max-width:320px"></select>
+        <span style="flex:1"></span>
+        <button id="btnLinkNew" class="secondary">Link a new phone</button>
+      </div>
+      <div id="deviceStatus" class="muted" style="margin-top:12px"></div>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <button data-tab="alerts" class="active">Alerts</button>
+      <button data-tab="location">Live location</button>
+      <button data-tab="calls">Call log</button>
+      <button data-tab="sms">Texts</button>
+      <button data-tab="sos">SOS</button>
+      <button data-tab="settings">Settings &amp; transparency</button>
+    </div>
+
+    <div id="locationCard" class="card hidden">
+      <div class="row" style="justify-content:space-between">
+        <h3 style="margin:0">Live location</h3>
+        <div class="row">
+          <button id="btnCenter" class="secondary">Center on child</button>
+          <button id="btnToggleSharing" class="secondary">Pause location sharing</button>
+        </div>
+      </div>
+      <p id="locStatus" class="muted" style="margin:10px 0"></p>
+      <div id="map"></div>
+      <p id="locFallback" class="muted hidden"></p>
+      <h4 style="margin-bottom:6px">Recent points</h4>
+      <div class="tablewrap" id="locHistory"></div>
+      <p class="muted">Location is shared while supervision is on. The child's phone shows a separate notice while it is shared. You can pause sharing here; the child's phone then shows that sharing is paused.</p>
+    </div>
+    <div id="pane"></div>
+  </section>
+</main>
+
+<section id="projectSource" style="max-width:980px;margin:0 auto;padding:0 20px 40px;">
+  <details class="source">
+    <summary>Project source: Android child app, Firestore rules, Firebase config, README (for developers)</summary>
+    <div class="card">
+      <p class="muted">Every text file in the Tele project is embedded in this page: the Android child app (Kotlin), the Firestore security rules, Firebase config, and the README. Secrets such as google-services.json and local.properties are not included.</p>
+      <div class="row" style="margin-bottom:8px">
+        <button id="btnDownloadSource" class="secondary">Download all source as one text file</button>
+      </div>
+      <div class="srcwrap">
+        <div class="srclist" id="srcList"></div>
+        <pre class="srccode" id="srcCode"></pre>
+      </div>
+    </div>
+  </details>
+</section>
+
+
+<script>
+/* ============================================================
+   CONFIG — replace with your Firebase web app config (see README).
+   While these are placeholders, the dashboard runs in demo mode.
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "REPLACE_ME",
+  authDomain: "REPLACE_ME.firebaseapp.com",
+  projectId: "REPLACE_ME",
+  storageBucket: "REPLACE_ME.appspot.com",
+  messagingSenderId: "REPLACE_ME",
+  appId: "REPLACE_ME"
+};
+const DEMO = FIREBASE_CONFIG.apiKey === "REPLACE_ME";
+const ALERT_THRESHOLD = 3;       // "Unknown number X called 3 times today"
+const TZ = "Africa/Nairobi";     // day boundaries for "today"
+const CALL_LIMIT = 300;
+const SMS_LIMIT = 300;
+const SOS_LIMIT = 50;
+const LOC_LIMIT = 200;
+
+/* ---------- helpers ---------- */
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const DAY = 86400000, NAIROBI_OFFSET = 3 * 3600000;
+const startOfTodayNairobi = (now = Date.now()) => Math.floor((now + NAIROBI_OFFSET) / DAY) * DAY - NAIROBI_OFFSET;
+const fmtTime = (ms) => ms ? new Date(ms).toLocaleString("en-GB", { timeZone: TZ, day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+const fmtDur = (s) => s > 0 ? `${Math.floor(s / 60)}m ${s % 60}s` : "—";
+const toMs = (v) => {
+  if (v == null) return null;
+  if (typeof v === "number") return v;
+  if (typeof v.toMillis === "function") return v.toMillis();
+  return null;
+};
+const timeAgo = (ms) => {
+  if (!ms) return "never";
+  const m = Math.round((Date.now() - ms) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  return h < 48 ? `${h} h ago` : fmtTime(ms);
+};
+const PHONE_RE = /^\+?[0-9 ]{7,20}$/;
+
+/* ---------- state ---------- */
+const state = {
+  db: null, auth: null, user: null,
+  familyId: null, family: null,
+  devices: [], deviceId: null, devicesBaseline: 0,
+  calls: [], sms: [], sos: [],
+  location: null, locHistory: [],
+  tab: "alerts", callFilter: "all",
+  pairing: null,
+  unsubs: [], deviceUnsubs: []
+};
+const DEMO_STORE = {};
+
+/* ---------- derived alerts ---------- */
+/** Unknown numbers (no saved name) that called the child at least `threshold` times today (incoming or missed). */
+function unknownAlerts(calls, threshold = ALERT_THRESHOLD, now = Date.now()) {
+  const start = startOfTodayNairobi(now);
+  const counts = new Map();
+  for (const c of calls) {
+    if (c.ts < start) continue;
+    if (c.type !== "incoming" && c.type !== "missed") continue;
+    if (c.name || !c.number || c.number === "Private") continue;
+    counts.set(c.number, (counts.get(c.number) || 0) + 1);
+  }
+  return [...counts]
+    .filter(([, n]) => n >= threshold)
+    .map(([number, count]) => ({ number, count }));
+}
+
+function currentDevice() { return state.devices.find(d => d.id === state.deviceId) || null; }
+
+/* ---------- Firebase loading (only in live mode) ---------- */
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src; s.onload = resolve;
+    s.onerror = () => reject(new Error("Could not load " + src));
+    document.head.appendChild(s);
+  });
+}
+async function initFirebase() {
+  const base = "https://www.gstatic.com/firebasejs/10.12.4/";
+  await loadScript(base + "firebase-app-compat.js");
+  await loadScript(base + "firebase-auth-compat.js");
+  await loadScript(base + "firebase-firestore-compat.js");
+  firebase.initializeApp(FIREBASE_CONFIG);
+  state.auth = firebase.auth();
+  state.db = firebase.firestore();
+}
+
+/* ---------- views ---------- */
+function showView(name) {
+  $("#viewAuth").classList.toggle("hidden", name !== "auth");
+  $("#viewSetup").classList.toggle("hidden", name !== "setup");
+  $("#viewApp").classList.toggle("hidden", name !== "app");
+  $("#btnSignOut").classList.toggle("hidden", !state.user);
+}
+
+/* ---------- live subscriptions ---------- */
+function clearSubs() {
+  state.unsubs.forEach(u => u()); state.unsubs = [];
+  clearDeviceSubs();
+}
+function clearDeviceSubs() {
+  state.deviceUnsubs.forEach(u => u()); state.deviceUnsubs = [];
+}
+
+function subscribeFamily(fid) {
+  clearSubs();
+  state.familyId = fid;
+  if (DEMO) { renderAll(); return; }
+  const fam = state.db.collection("families").doc(fid);
+  state.unsubs.push(fam.onSnapshot(s => { state.family = s.data() || null; renderAll(); }));
+  state.unsubs.push(fam.collection("devices").onSnapshot(s => {
+    const previous = state.devices.length;
+    state.devices = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (state.pairing && state.devices.length > state.devicesBaseline) state.pairing = null; // phone linked
+    if (!state.devices.find(d => d.id === state.deviceId)) {
+      state.deviceId = state.devices[0]?.id || null;
+      subscribeDevice();
+    } else if (previous === 0) {
+      subscribeDevice();
+    }
+    renderAll();
+  }));
+}
+
+function subscribeDevice() {
+  clearDeviceSubs();
+  state.calls = []; state.sms = []; state.sos = [];
+  state.location = null; state.locHistory = [];
+  if (!state.deviceId) { renderAll(); return; }
+  if (DEMO) {
+    const store = DEMO_STORE[state.deviceId];
+    state.calls = store.calls; state.sms = store.sms; state.sos = store.sos;
+    state.location = store.location; state.locHistory = store.locHistory;
+    renderAll();
+    return;
+  }
+  const dev = state.db.collection("families").doc(state.familyId).collection("devices").doc(state.deviceId);
+  state.deviceUnsubs.push(dev.collection("calls").orderBy("ts", "desc").limit(CALL_LIMIT).onSnapshot(s => {
+    state.calls = s.docs.map(d => ({ id: d.id, ...d.data() })); renderAll();
+  }));
+  state.deviceUnsubs.push(dev.collection("sms").orderBy("ts", "desc").limit(SMS_LIMIT).onSnapshot(s => {
+    state.sms = s.docs.map(d => ({ id: d.id, ...d.data() })); renderAll();
+  }));
+  state.deviceUnsubs.push(dev.collection("sos").orderBy("ts", "desc").limit(SOS_LIMIT).onSnapshot(s => {
+    state.sos = s.docs.map(d => ({ id: d.id, ...d.data() })); renderAll();
+  }));
+  state.deviceUnsubs.push(dev.collection("location").doc("current").onSnapshot(s => {
+    state.location = s.exists ? s.data() : null; renderAll();
+  }));
+  state.deviceUnsubs.push(dev.collection("locationHistory").orderBy("ts", "desc").limit(LOC_LIMIT).onSnapshot(s => {
+    state.locHistory = s.docs.map(d => d.data()); renderAll();
+  }));
+}
+
+/* ---------- API (live or demo) ---------- */
+const Api = {
+  async saveDevice(did, fields) {
+    if (DEMO) { Object.assign(currentDevice(), fields); return; }
+    await state.db.collection("families").doc(state.familyId).collection("devices").doc(did).update(fields);
+  },
+  async acknowledgeSos(sid) {
+    if (DEMO) { const s = state.sos.find(x => x.id === sid); if (s) s.acknowledgedBy = "demo"; return; }
+    await state.db.collection("families").doc(state.familyId).collection("devices").doc(state.deviceId)
+      .collection("sos").doc(sid).update({ acknowledgedBy: state.user.uid, acknowledgedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  },
+  async createPairing() {
+    const a = new Uint32Array(1); crypto.getRandomValues(a);
+    const code = String(100000 + (a[0] % 900000));
+    const expiresAt = Date.now() + 10 * 60000;
+    if (!DEMO) {
+      await state.db.collection("pairings").doc(code).set({
+        familyId: state.familyId,
+        createdBy: state.user.uid,
+        expiresAt: firebase.firestore.Timestamp.fromMillis(expiresAt)
+      });
+    }
+    return { code, expiresAt };
+  },
+  async createFamily(name) {
+    const fid = state.db.collection("families").doc().id;
+    await state.db.collection("families").doc(fid).set({
+      name, parentUids: [state.user.uid], createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await state.db.collection("parents").doc(state.user.uid).set({ familyId: fid });
+    return fid;
+  }
+};
+
+/* ---------- rendering ---------- */
+function renderAll() {
+  renderDeviceBar();
+  renderTabs();
+  renderPane();
+}
+
+function renderDeviceBar() {
+  const sel = $("#deviceSelect");
+  sel.innerHTML = state.devices.length
+    ? state.devices.map(d => `<option value="${esc(d.id)}" ${d.id === state.deviceId ? "selected" : ""}>${esc(d.label || "Child phone")}</option>`).join("")
+    : `<option value="">No phone linked yet</option>`;
+  const d = currentDevice();
+  if (!d) {
+    $("#deviceStatus").textContent = "Link your child's phone to start. Click \"Link a new phone\" and enter the code on the child's phone.";
+    return;
+  }
+  const p = d.permissions || {};
+  const perm = (ok, label) => `<span class="${ok ? "ok" : "no"}">${ok ? "✓" : "✗"} ${label}</span>`;
+  $("#deviceStatus").innerHTML = `
+    Last seen: <b>${esc(timeAgo(toMs(d.lastSeen)))}</b> &nbsp;·&nbsp;
+    Texts: ${d.defaultSms ? '<span class="ok">content visible (Tele is default SMS app)</span>' : '<span class="no">sender &amp; time only</span>'}
+    <div style="margin-top:6px" class="row">
+      ${perm(p.callLog, "Call log")} ${perm(p.sms, "Texts")} ${perm(p.sendSms, "Send SMS")}
+      ${perm(p.contacts, "Contacts")} ${perm(p.location, "Location")} ${perm(p.backgroundLocation, "Location all the time")}
+    </div>`;
+}
+
+function renderTabs() {
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === state.tab));
+}
+
+function renderPane() {
+  const d = currentDevice();
+  const showLoc = state.tab === "location" && !!d;
+  $("#locationCard").classList.toggle("hidden", !showLoc);
+  if (showLoc) {
+    $("#pane").innerHTML = pairingHtml();
+    renderLocation(d);
+    return;
+  }
+  let html = pairingHtml();
+  if (!d) {
+    html += `<div class="card"><p class="empty">No child phone linked yet.</p></div>`;
+  } else if (state.tab === "alerts") html += renderAlerts(d);
+  else if (state.tab === "calls") html += renderCalls();
+  else if (state.tab === "sms") html += renderSms(d);
+  else if (state.tab === "sos") html += renderSos(d);
+  else if (state.tab === "settings") html += renderSettings(d);
+  $("#pane").innerHTML = html;
+}
+
+function pairingHtml() {
+  if (!state.pairing) return "";
+  const minsLeft = Math.max(0, Math.round((state.pairing.expiresAt - Date.now()) / 60000));
+  return `<div class="card">
+    <h3 style="margin-top:0">Link a new phone</h3>
+    <p class="muted">On the child's phone: open Tele, tap <b>"5. Link to parent with code"</b>, and enter this code. Expires in about ${minsLeft} min.</p>
+    <div class="code">${esc(state.pairing.code)}</div>
+    <button id="btnNewCode" class="secondary">Make a new code</button>
+  </div>`;
+}
+
+function renderAlerts(d) {
+  const threshold = Number(d.alertThreshold ?? ALERT_THRESHOLD);
+  const openSos = state.sos.filter(s => !s.acknowledgedBy);
+  const unknown = unknownAlerts(state.calls, threshold);
+  let html = "";
+  openSos.slice(0, 5).forEach(s => {
+    const where = s.withLocation
+      ? `Location: <a target="_blank" rel="noopener noreferrer" href="https://maps.google.com/?q=${Number(s.lat)},${Number(s.lng)}">open map</a> (±${Math.round(Number(s.accuracyM) || 0)} m)`
+      : "No location was shared.";
+    html += `<div class="alert sos"><b>SOS from ${esc(d.label || "child phone")}</b> · ${esc(fmtTime(toMs(s.ts)))}<br>${where}
+      <div style="margin-top:8px"><button class="danger" data-ack="${esc(s.id)}">I've seen this</button></div></div>`;
+  });
+  unknown.forEach(u => {
+    html += `<div class="alert">Unknown number <b>${esc(u.number)}</b> called ${u.count} times today</div>`;
+  });
+  if (!d.defaultSms) {
+    html += `<div class="alert info">Text content is hidden. Tele is not the default SMS app on this phone, so you see only who texted and when.</div>`;
+  }
+  if (!html) html = `<p class="empty">No alerts right now.</p>`;
+
+  const todayStart = startOfTodayNairobi();
+  const todays = state.calls.filter(c => c.ts >= todayStart);
+  const missed = todays.filter(c => c.type === "missed").length;
+  return `<div class="card">
+    <h3 style="margin-top:0">Alerts</h3>
+    ${html}
+    <p class="muted" style="margin-top:14px">Today so far: ${todays.length} calls, ${missed} missed. Unknown-number alert: ${threshold}+ incoming or missed calls from a number with no saved name.</p>
+  </div>`;
+}
+
+function renderCalls() {
+  const filter = state.callFilter;
+  const todayStart = startOfTodayNairobi();
+  const list = state.calls.filter(c => {
+    if (filter === "all") return true;
+    if (filter === "unknown") return !c.name && c.number !== "Private";
+    return c.type === filter;
+  });
+  const rows = list.slice(0, 200).map(c => `
+    <tr>
+      <td>${esc(fmtTime(c.ts))}</td>
+      <td>${esc(c.name || c.number)}${c.name ? `<div class="muted">${esc(c.number)}</div>` : ""}</td>
+      <td><span class="pill ${esc(c.type)}">${esc(c.type)}</span></td>
+      <td class="hide-sm">${esc(fmtDur(c.durationSec))}</td>
+    </tr>`).join("");
+  return `<div class="card">
+    <div class="row" style="justify-content:space-between">
+      <h3 style="margin:0">Call log</h3>
+      <select id="callFilter" style="max-width:220px">
+        ${[["all","All calls"],["missed","Missed"],["incoming","Incoming"],["outgoing","Outgoing"],["unknown","Unknown names"]]
+          .map(([v, l]) => `<option value="${v}" ${v === filter ? "selected" : ""}>${l}</option>`).join("")}
+      </select>
+    </div>
+    <p class="muted">Shows number, saved name, time, length and type. Call audio is never recorded.</p>
+    <div class="tablewrap">
+      ${list.length ? `<table><thead><tr><th>Time</th><th>Number / name</th><th>Type</th><th class="hide-sm">Length</th></tr></thead><tbody>${rows}</tbody></table>`
+                    : `<p class="empty">No calls to show.</p>`}
+    </div>
+  </div>`;
+}
+
+function renderSms(d) {
+  const rows = state.sms.slice(0, 200).map(m => {
+    const visible = m.bodyVisible === true && m.body != null;
+    const content = visible
+      ? `<div class="msg-body">${esc(m.body)}</div>`
+      : `<span class="msg-hidden">Hidden: Tele is not the default SMS app on this phone</span>`;
+    return `<tr>
+      <td>${esc(fmtTime(m.ts))}</td>
+      <td>${esc(m.folder === "sent" ? "Sent" : "Received")}</td>
+      <td>${esc(m.name || m.address)}${m.name ? `<div class="muted">${esc(m.address)}</div>` : ""}</td>
+      <td>${content}</td>
+    </tr>`;
+  }).join("");
+  return `<div class="card">
+    <h3 style="margin-top:0">Texts (SMS)</h3>
+    <p class="muted">${d.defaultSms
+      ? "Text content is visible because Tele is the default SMS app on this phone."
+      : "Only sender and time are shown. Text content appears only when Tele is the default SMS app on the child's phone."}</p>
+    <div class="tablewrap">
+      ${state.sms.length ? `<table><thead><tr><th>Time</th><th>Folder</th><th>Contact</th><th>Content</th></tr></thead><tbody>${rows}</tbody></table>`
+                         : `<p class="empty">No texts to show yet.</p>`}
+    </div>
+  </div>`;
+}
+
+function renderSos(d) {
+  if (!state.sos.length) return `<div class="card"><h3 style="margin-top:0">SOS</h3><p class="empty">No SOS events. The child can press SOS on their phone at any time.</p></div>`;
+  const rows = state.sos.map(s => `<tr>
+      <td>${esc(fmtTime(toMs(s.ts)))}</td>
+      <td>${s.withLocation
+          ? `<a target="_blank" rel="noopener noreferrer" href="https://maps.google.com/?q=${Number(s.lat)},${Number(s.lng)}">Map</a>`
+          : "No location"}</td>
+      <td>${s.acknowledgedBy ? '<span class="ok">Seen</span>' : `<button class="danger" data-ack="${esc(s.id)}">Mark seen</button>`}</td>
+    </tr>`).join("");
+  return `<div class="card"><h3 style="margin-top:0">SOS events from ${esc(d.label || "child phone")}</h3>
+    <p class="muted">Sent only when the child presses SOS and confirms.</p>
+    <div class="tablewrap"><table><thead><tr><th>Time</th><th>Location</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+  </div>`;
+}
+
+function renderSettings(d) {
+  return `
+  <div class="card">
+    <h3 style="margin-top:0">Child phone settings</h3>
+    <div class="grid">
+      <label>Name shown in alerts<input type="text" id="setLabel" maxlength="60" value="${esc(d.label || "")}"></label>
+      <label>Emergency SMS number for SOS<input type="tel" id="setSos" placeholder="e.g. 0772 000 000" value="${esc(d.sosContactPhone || "")}"></label>
+      <label>Unknown-number alert after (calls today)<input type="number" id="setThreshold" min="2" max="10" value="${Number(d.alertThreshold ?? ALERT_THRESHOLD)}"></label>
+    </div>
+    <p class="row" style="margin-top:12px"><button id="btnSaveSettings">Save settings</button> <span id="settingsMsg" class="muted"></span></p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">What your child sees on their phone</h3>
+    <ul>
+      <li>A permanent notification: <i>"This device is supervised by Dad - Call log and SMS visible to parent"</i>. It cannot be swiped away while supervision is on.</li>
+      <li>Tele's icon on the home screen. Tele never hides its icon.</li>
+      <li>Every permission is asked in a normal Android dialog. Location is asked with an explanation first.</li>
+      <li>Live location is shared while supervision is on. A separate notice stays on the child's phone while it is shared. You can pause sharing from the Live location tab.</li>
+      <li>Text content is shared only if the child accepts Tele as the default SMS app in Android's own dialog.</li>
+      <li>Tele never records calls or listens to audio, and never forwards calls.</li>
+      <li>The child can open "My call &amp; text log" in Tele to see the same data you see.</li>
+    </ul>
+  </div>`;
+}
+
+/* ---------- live location ---------- */
+let leafletPromise = null, map = null, marker = null, trail = null, centeredFor = null;
+
+/** Leaflet (OpenStreetMap tiles) is loaded only when the Live location tab is opened. */
+function loadLeaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  if (!leafletPromise) {
+    leafletPromise = new Promise((resolve, reject) => {
+      const css = document.createElement("link");
+      css.rel = "stylesheet";
+      css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(css);
+      const js = document.createElement("script");
+      js.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      js.onload = () => resolve(window.L);
+      js.onerror = () => { leafletPromise = null; reject(new Error("map library unavailable")); };
+      document.head.appendChild(js);
+    });
+  }
+  return leafletPromise;
+}
+
+function ensureMap(L) {
+  if (map) return;
+  map = L.map("map").setView([0.3476, 32.5825], 13);   // Kampala until the first point arrives
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap contributors"
+  }).addTo(map);
+  trail = L.polyline([], { color: "#0E7C7B", weight: 4, opacity: 0.7 }).addTo(map);
+}
+
+function renderLocHistory() {
+  const rows = state.locHistory.slice(0, 50).map(p => `
+    <tr>
+      <td>${esc(fmtTime(toMs(p.ts)))}</td>
+      <td>${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}</td>
+      <td>±${Math.round(Number(p.accuracyM) || 0)} m</td>
+      <td><a target="_blank" rel="noopener noreferrer" href="https://maps.google.com/?q=${Number(p.lat)},${Number(p.lng)}">map</a></td>
+    </tr>`).join("");
+  $("#locHistory").innerHTML = state.locHistory.length
+    ? `<table><thead><tr><th>Time</th><th>Coordinates</th><th>Accuracy</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+    : `<p class="empty">No location points yet.</p>`;
+}
+
+function renderLocation(d) {
+  const cur = state.location;
+  const sharing = d.locationSharing !== false;
+  const ts = cur ? toMs(cur.ts) : null;
+  const stale = ts && Date.now() - ts > 5 * 60000;
+
+  $("#btnToggleSharing").textContent = sharing ? "Pause location sharing" : "Resume location sharing";
+  let status;
+  if (!sharing) {
+    status = `<span class="no">Sharing is paused.</span> Last known position: ${cur ? esc(timeAgo(ts)) : "not available"}. The child's phone shows that sharing is paused.`;
+  } else if (!cur) {
+    status = "No location received yet. It starts once the child's phone has allowed location \"Allow all the time\" and is linked.";
+  } else {
+    status = `${stale ? '<span class="no">Last update is old</span>' : '<span class="ok">Live</span>'} · updated ${esc(timeAgo(ts))} · accuracy ±${Math.round(Number(cur.accuracyM) || 0)} m`;
+  }
+  $("#locStatus").innerHTML = status;
+  renderLocHistory();
+
+  const fallback = $("#locFallback");
+  loadLeaflet().then(L => {
+    fallback.classList.add("hidden");
+    ensureMap(L);
+    map.invalidateSize();
+    trail.setLatLngs(state.locHistory.slice().reverse().map(p => [Number(p.lat), Number(p.lng)]));
+    if (cur) {
+      if (!marker) marker = L.circleMarker([Number(cur.lat), Number(cur.lng)], {
+        radius: 9, color: "#fff", weight: 3, fillColor: "#C62828", fillOpacity: 1
+      }).addTo(map);
+      marker.setLatLng([Number(cur.lat), Number(cur.lng)]);
+      if (centeredFor !== d.id) { map.setView([Number(cur.lat), Number(cur.lng)], 16); centeredFor = d.id; }
+    }
+  }).catch(() => {
+    fallback.classList.remove("hidden");
+    fallback.innerHTML = cur
+      ? `Map could not load (check your connection). Last position: ${Number(cur.lat).toFixed(5)}, ${Number(cur.lng).toFixed(5)} · <a target="_blank" rel="noopener noreferrer" href="https://maps.google.com/?q=${Number(cur.lat)},${Number(cur.lng)}">open in Google Maps</a>`
+      : "Map could not load (check your connection).";
+  });
+}
+
+function centerOnChild() {
+  if (map && state.location) map.setView([Number(state.location.lat), Number(state.location.lng)], 16);
+}
+
+async function toggleSharing() {
+  const d = currentDevice();
+  if (!d) return;
+  const resume = d.locationSharing === false;
+  try {
+    await Api.saveDevice(d.id, { locationSharing: resume });
+    renderAll();
+  } catch (e) {
+    alert("Could not change location sharing: " + e.message);
+  }
+}
+
+/* ---------- actions ---------- */
+async function saveSettings() {
+  const d = currentDevice();
+  const msg = $("#settingsMsg");
+  const phone = $("#setSos").value.trim();
+  if (phone && !PHONE_RE.test(phone)) { msg.textContent = "Enter a valid phone number, or leave it empty."; return; }
+  const threshold = Math.min(10, Math.max(2, Number($("#setThreshold").value) || ALERT_THRESHOLD));
+  try {
+    await Api.saveDevice(d.id, {
+      label: $("#setLabel").value.trim().slice(0, 60) || "Child phone",
+      sosContactPhone: phone,
+      alertThreshold: threshold
+    });
+    msg.textContent = "Saved.";
+  } catch (e) {
+    msg.textContent = "Could not save: " + e.message;
+  }
+}
+
+async function ackSos(id) {
+  try { await Api.acknowledgeSos(id); renderAll(); }
+  catch (e) { alert("Could not mark as seen: " + e.message); }
+}
+
+async function startPairing() {
+  if (!state.familyId) return;
+  try {
+    state.pairing = await Api.createPairing();
+    state.devicesBaseline = state.devices.length;
+    renderAll();
+  } catch (e) {
+    alert("Could not create a code: " + e.message);
+  }
+}
+
+/* ---------- event wiring ---------- */
+document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => {
+  state.tab = b.dataset.tab;
+  renderAll();
+}));
+$("#deviceSelect").addEventListener("change", e => {
+  state.deviceId = e.target.value || null;
+  subscribeDevice();
+});
+$("#btnLinkNew").addEventListener("click", startPairing);
+$("#pane").addEventListener("click", e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.ack) return ackSos(t.dataset.ack);
+  if (t.id === "btnSaveSettings") return saveSettings();
+  if (t.id === "btnNewCode") return startPairing();
+});
+$("#locationCard").addEventListener("click", e => {
+  if (e.target.id === "btnCenter") centerOnChild();
+  if (e.target.id === "btnToggleSharing") toggleSharing();
+});
+$("#pane").addEventListener("change", e => {
+  if (e.target.id === "callFilter") { state.callFilter = e.target.value; renderPane(); }
+});
+
+$("#formAuth").addEventListener("submit", async e => {
+  e.preventDefault();
+  await authAction("signin");
+});
+$("#btnSignUp").addEventListener("click", () => authAction("signup"));
+async function authAction(kind) {
+  $("#authError").textContent = "";
+  const email = $("#email").value.trim();
+  const password = $("#password").value;
+  try {
+    if (kind === "signup") await state.auth.createUserWithEmailAndPassword(email, password);
+    else await state.auth.signInWithEmailAndPassword(email, password);
+  } catch (err) {
+    $("#authError").textContent = err.message;
+  }
+}
+
+$("#formFamily").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("#familyName").value.trim();
+  if (!name) return;
+  try {
+    const fid = await Api.createFamily(name);
+    subscribeFamily(fid);
+    showView("app");
+  } catch (err) {
+    alert("Could not create family: " + err.message);
+  }
+});
+
+$("#btnSignOut").addEventListener("click", async () => {
+  if (DEMO) { location.reload(); return; }
+  await state.auth.signOut();
+});
+
+$("#btnDemo").addEventListener("click", () => {
+  state.user = { uid: "demo", email: "demo@example.com" };
+  $("#whoami").textContent = "Demo parent";
+  subscribeFamily("demo");
+  subscribeDevice();
+  showView("app");
+});
+
+async function onAuthChanged(user) {
+  state.user = user;
+  if (!user) {
+    $("#whoami").textContent = "";
+    clearSubs();
+    showView("auth");
+    return;
+  }
+  $("#whoami").textContent = user.email || "";
+  const parent = await state.db.collection("parents").doc(user.uid).get();
+  if (!parent.exists) { showView("setup"); return; }
+  subscribeFamily(parent.data().familyId);
+  showView("app");
+}
+
+/* ---------- demo data (used only while FIREBASE_CONFIG is placeholder) ---------- */
+function makeDemo() {
+  const now = Date.now(), m = 60000, h = 3600000;
+  DEMO_STORE["demo-1"] = {
+    calls: [
+      { id: "d1", number: "0772100200", name: "Mama", durationSec: 312, ts: now - 2 * h, type: "incoming" },
+      { id: "d2", number: "0758111222", name: "", durationSec: 0, ts: now - 3 * h, type: "missed" },
+      { id: "d3", number: "0778123456", name: "", durationSec: 0, ts: now - 5 * m, type: "missed" },
+      { id: "d4", number: "0778123456", name: "", durationSec: 0, ts: now - 15 * m, type: "incoming" },
+      { id: "d5", number: "0778123456", name: "", durationSec: 41, ts: now - 25 * m, type: "incoming" },
+      { id: "d6", number: "0701555666", name: "Auntie Grace", durationSec: 95, ts: now - 26 * h, type: "outgoing" },
+      { id: "d7", number: "0789000111", name: "", durationSec: 0, ts: now - 30 * h, type: "missed" },
+      { id: "d8", number: "Private", name: "", durationSec: 12, ts: now - 31 * h, type: "incoming" }
+    ],
+    sms: [
+      { id: "m1", address: "0772100200", name: "Mama", folder: "inbox", ts: now - 90 * m, body: null, bodyVisible: false },
+      { id: "m2", address: "0778123456", name: "", folder: "inbox", ts: now - 20 * m, body: null, bodyVisible: false },
+      { id: "m3", address: "0701555666", name: "Auntie Grace", folder: "sent", ts: now - 26 * h, body: null, bodyVisible: false }
+    ],
+    sos: [
+      { id: "s1", ts: now - 3 * h, withLocation: true, lat: 0.3476, lng: 32.5825, accuracyM: 12, acknowledgedBy: null }
+    ]
+  };
+  // Demo location: a short walk around central Kampala, one point every 2 minutes.
+  const walk = [[0.3476, 32.5825], [0.3481, 32.5833], [0.3490, 32.5841], [0.3496, 32.5852],
+                [0.3502, 32.5866], [0.3508, 32.5879], [0.3514, 32.5890], [0.3519, 32.5902]];
+  const locHistory = walk.map(([lat, lng], i) => ({
+    lat, lng, accuracyM: 8 + (i % 3) * 3, ts: now - (walk.length - 1 - i) * 2 * m
+  })).reverse();
+  DEMO_STORE["demo-1"].location = { ...locHistory[0] };
+  DEMO_STORE["demo-1"].locHistory = locHistory;
+  state.devices = [{
+    id: "demo-1", label: "Child phone (demo)", lastSeen: now - 4 * m, defaultSms: false, appVersion: "1.0.0",
+    alertThreshold: ALERT_THRESHOLD, sosContactPhone: "0700 000 000", locationSharing: true,
+    permissions: { callLog: true, sms: true, sendSms: true, contacts: true, location: true, backgroundLocation: true }
+  }];
+  state.deviceId = "demo-1";
+}
+
+
+/* ---------- embedded project source (read-only copy of the project) ---------- */
+const PROJECT_FILES = {".gitignore": "# Android / Gradle build output\nandroid/.gradle/\nandroid/build/\nandroid/app/build/\nandroid/.idea/\n*.iml\nandroid/local.properties\n\n# Secrets: never commit these. Get your own from the Firebase console.\nandroid/app/google-services.json\n.env\n\n# OS / editor\n.DS_Store\nThumbs.db\n.vscode/\n", "README.md": "# Tele: transparent family safety for phone calls and SMS\n\nTele is a family-safety app modeled on Google Family Link. It shows a parent the call log and texts on a child's Android phone, plus the phone's live location. It is open about what it does: the child sees a permanent notice, every permission is an Android system dialog, and the child cannot turn supervision off from the child app.\n\nTele does **not** support WhatsApp, record call audio, forward calls, hide its icon, or run without a visible notice.\n\n| Part | What it is | Folder |\n|---|---|---|\n| **Child app** | Android app (Kotlin, Android 8.0+) on the child's phone. Visible icon, permanent supervision notice, openly requested permissions, optional location sharing. | `android/` |\n| **Parent dashboard** | Web dashboard on Firebase (Auth + Firestore). Shows call log, texts, alerts, SOS events, and live location. | `web/` (single file: `web/index.html`) |\n| **Security rules** | Firestore rules that limit each side to its own data. | `firebase/firestore.rules` |\n| **Single-file build** | Script that produces one HTML file for Vercel: the dashboard plus a read-only copy of the project source. | `scripts/build-single-file.py` |\n\n---\n\n## 0. Put this project on GitHub (GitHub Desktop)\n\n1. On github.com, create an empty repository named **`tele`** under your account. Do not add a README or .gitignore there, because this folder already has them.\n2. In GitHub Desktop, choose **File → Add local repository…** and select this folder. If it says it isn't a repository, click **create a repository**.\n3. Check the **Changes** list. The `google-services.json` file and any `local.properties` file are gitignored, so they should not appear.\n4. Write a summary such as \"Initial project: child app, dashboard, rules, location\", then click **Commit to main**.\n5. Click **Publish repository**, and choose the `tele` repository on GitHub.\n\nIf you see a 404 when opening `https://github.com/<you>/tele`, the repository either doesn't exist yet or is private. Step 1 creates it.\n\n---\n\n## 1. How each requirement is met\n\n| Requirement | Implementation |\n|---|---|\n| Visible icon | Launcher icon (shield) in `res/mipmap-anydpi-v26`. The app has a normal launcher activity. |\n| Permanent foreground notification with the exact text *\"This device is supervised by Dad - Call log and SMS visible to parent\"* | `SupervisionService` runs as a foreground service. Its notification is ongoing, so it can't be swiped away. The text is in `res/values/strings.xml` (key `supervision_notice`). |\n| Permissions requested openly | `Permissions.SETUP` asks for `READ_CALL_LOG`, `READ_SMS`, `SEND_SMS`, `READ_CONTACTS` (plus `POST_NOTIFICATIONS` on Android 13+ so the notice can show). Each is a normal Android system dialog. |\n| Real-time location | `LocationService` is a foreground service with `foregroundServiceType=\"location\"`. It shares the phone's location about once a minute while supervision is on. It needs `ACCESS_FINE_LOCATION`, then `ACCESS_BACKGROUND_LOCATION` (\\\"Allow all the time\\\"), and each is requested in a system dialog after a plain-language explanation. It shows its own visible notice: *\\\"Tele is sharing this phone's location with Dad now.\\\"* The parent can pause sharing from the **Live location** tab. The child's notice then changes to *\\\"Location sharing is paused by Dad.\\\"* |\n| Default SMS app, with a system dialog | `SmsRole.requestIntent()` uses `RoleManager.ROLE_SMS` (Android 10+) or `ACTION_CHANGE_DEFAULT` (older). Tele first shows its own dialog titled \\\"Set Tele as default SMS app?\\\", then Android's dialog, which the child must accept. |\n| SMS content only when default | `SmsReader.read(includeBody = SmsRole.isDefault())`. When Tele is not the default, the `body` column is never queried, and `body` is stored as `null`. |\n| Call log metadata | Number, saved name (from the call log cache, or Contacts if allowed), duration, time, and type: incoming, outgoing, missed, rejected, blocked, voicemail. |\n| Parent alert: \\\"Unknown number 07xxxx called 3 times today\\\" | The dashboard counts incoming or missed calls from numbers with no saved name since midnight (Africa/Nairobi). At or above the threshold (default 3, adjustable 2–10), it shows the alert. |\n| SOS with consent | The child presses SOS, confirms a dialog, and the app sends one SOS event to Firestore with the current location. If the parent has set an emergency number, Tele also texts it. |\n| Child can see what the parent sees | \\\"View what my parent can see\\\" opens the same call and SMS data, read locally from the phone. |\n| Child cannot unlink | There is no unlink option in the child app. Only the parent dashboard removes a device. |\n| Must NOT hide the icon | Not done. Tele doesn't hide its icon or run without a notice. |\n| Must NOT record call audio | Not done. Tele has no microphone or call-recording code. |\n| Must NOT forward calls | Not done. |\n| Parent sees data in Firebase | `families/{id}/devices/{id}/calls|sms|sos|location` in Firestore, shown by the dashboard. |\n\n---\n\n## 2. Setup\n\n### 2a. Firebase project (about 10 minutes)\n\n1. Go to <https://console.firebase.google.com>, create a project (for example `tele-family`), and add a **Web app**. Copy its config object.\n2. **Authentication → Sign-in method**: enable **Email/Password** and **Anonymous**.\n3. **Firestore Database**: create a database in production mode.\n4. Install the CLI and deploy the rules from the **repository root** (where `firebase.json` is):\n   ```bash\n   npm install -g firebase-tools\n   firebase login\n   firebase use --add        # select your project\n   firebase deploy --only firestore:rules\n   ```\n5. In **Project settings → Your apps → Android**, register the package **`com.tele.child`** and download `google-services.json`.\n\n### 2b. Child app (Android Studio)\n\n1. Put `google-services.json` in `android/app/`. It is gitignored and must never be committed.\n2. Open `android/` in **Android Studio (Ladybug or newer)**. It uses the Gradle wrapper (Gradle 8.7) and downloads dependencies.\n3. Build and install on the **child's phone**: *Run → Run 'app'*, or build a debug APK and install it.\n4. Open Tele on the child's phone and go through the steps in order:\n   1. **Read what Tele shares.** The child reads and accepts the consent text.\n   2. **Allow permissions.** The child sees each Android dialog and allows or denies it.\n   3. **Allow location (real-time sharing).** Precise location first, then \\\"Allow all the time\\\". Both are Android system dialogs.\n   4. **Set as default SMS app (optional).** Only then does Tele show text content. Android asks the child to confirm.\n   5. **Link to parent with code.** Enter the 6-digit code from the dashboard. Location sharing starts after linking.\n\n### 2c. Parent dashboard\n\n**Option 1: Vercel (single file, recommended).**\n- Set the Vercel project's **Root Directory** to `web`, so it serves `web/index.html`.\n- Or deploy the single file `tele-vercel/index.html`, which is built with `python3 scripts/build-single-file.py`. It has the same dashboard plus the project source viewer.\n- Add your Vercel domain under **Firebase → Authentication → Settings → Authorized domains**.\n\n**Option 2: local.**\n1. Open `web/index.html` and replace the `FIREBASE_CONFIG` placeholder values with your web config.\n2. Test locally:\n   ```bash\n   cd web && python3 -m http.server 8080\n   ```\n   Then open <http://localhost:8080>. Firebase Auth allows `localhost` by default.\n\nSign up as a parent, create your family, then click **Link a new phone**. Enter the 6-digit code on the child's phone within 10 minutes.\n\n**Demo mode:** while the config still says `REPLACE_ME`, the dashboard shows sample data, so you can see the layout without Firebase.\n\n### 2d. Live location: one-time Firestore setup\n\n- Deploy the updated rules (they include `location` and `locationHistory`).\n- Firestore → **TTL policies** → create a policy on the **`locationHistory`** collection group with the field **`expiresAt`**. Points then delete automatically after 7 days.\n- At a one-minute interval that is about 1,440 location updates per device per day, and each update writes two documents (`current` and a history point), so about 2,880 Firestore writes per device per day. Check your Firestore usage against your plan. Adjust `UPDATE_INTERVAL_MS` in `LocationService.kt` to change the rate.\n\n---\n\n## 3. Data model\n\n```\nparents/{uid}                         -> { familyId }\nfamilies/{familyId}                   -> { name, parentUids: [uid], createdAt }\n  devices/{deviceId}                  -> { ownerUid, label, defaultSms, permissions{...},\n                                           lastSeen, appVersion, sosContactPhone, alertThreshold,\n                                           locationSharing }\n    calls/c{callLogId}                -> { id, number, name, durationSec, ts, type }\n    sms/s{smsId}                      -> { id, address, name, ts, folder, body|null, bodyVisible }\n    sos/{auto}                        -> { ts, lat, lng, accuracyM, withLocation, acknowledgedBy }\n    location/current                  -> { lat, lng, accuracyM, ts }          (live map)\n    locationHistory/{auto}            -> { lat, lng, accuracyM, ts, expiresAt } (trail, TTL 7 days)\npairings/{6-digit code}               -> { familyId, createdBy, expiresAt }   (10-minute link codes)\n```\n\nSecurity rules (`firebase/firestore.rules`):\n- **Parents** can read their own family, including live location. They can change the device label, emergency number, alert threshold and location sharing switch, and they can acknowledge SOS events. They cannot edit calls, texts, location or SOS content.\n- **A child phone** can write only to the device record it created, using its own anonymous UID. It cannot read other families.\n- **`body` in SMS** must be `null` unless `bodyVisible == true`. The rules enforce this, so the server refuses text content from a phone that isn't the default SMS app.\n\n---\n\n## 4. Consent and location: what changed\n\nThe first design shared location only for SOS presses. The current design adds **continuous real-time location** at the parent's request. The differences are:\n\n- Location sharing runs in the background while supervision is on. It has its own visible notice on the child's phone.\n- The parent can pause sharing at any time from the dashboard. The child's notice then says that sharing is paused.\n- The child is asked for location permission in system dialogs, with an explanation first. Background location is requested separately.\n- The child still cannot unlink or turn off supervision from the child app.\n\nThe consent text and the continuous-sharing design have **not yet been reviewed** by the family or by a privacy reviewer. Review them before you rely on the app.\n\n---\n\n## 5. Known limitations (please read before using)\n\n1. **Build status.** The Kotlin and Java sources compile with Gradle 8.7 and AGP 8.5.2 in this environment. The full APK build may need more memory than the build sandbox has (see `android/gradle.properties`, which sets `-Xmx3072m`; lower it on small machines). The **Firestore rules have not been run against the emulator**. Test them with `firebase emulators:start` before you rely on them.\n2. **Google Play.** Play restricts apps that read call logs or SMS, and it requires a policy declaration. Background location is also restricted. This build is meant for sideloading onto the family's own phones, not for Play Store distribution.\n3. **Android \\\"Restricted settings\\\".** On Android 13+, sideloaded apps may be blocked from SMS and call-log access until the owner allows it: *Settings → Apps → Tele → ⋮ → Allow restricted settings*. The child or parent may need to do this.\n4. **Default SMS app replaces the child's messaging app.** When Tele is the default, the child's usual texting app is replaced by Tele's basic compose screen. The child is told this in the consent text and in the default-SMS dialog.\n5. **Android's dialog wording.** Tele shows its own explanation titled \\\"Set Tele as default SMS app?\\\" first. Android then shows its own system dialog, and its wording is set by the OS. Tele can't change that wording.\n6. **MMS (picture messages) is not logged.** Tele is registered as the MMS receiver but does not store MMS. Quick-reply from incoming calls is not implemented.\n7. **Sent texts.** Texts that Tele sends are stored through the system SMS provider. Whether they appear in the \\\"Sent\\\" folder depends on the phone's SMS implementation, so check on your device.\n8. **Pairing codes.** Codes are 6 digits and last 10 minutes. Any signed-in user could guess one, so consider enabling **Firebase App Check** and rate limiting before a wide rollout.\n9. **Timezone.** \\\"Today\\\" for the unknown-number alert uses Africa/Nairobi. This is hard-coded in the dashboard.\n10. **Uninstalling.** The child can uninstall Tele or revoke permissions, as with any app. The dashboard shows \\\"Last seen\\\" and permission status, so a parent can notice. Tele does not block the child from removing it. The child cannot unlink from the child app, but the parent can remove the device from the dashboard. Google Family Link works differently, with the parent controlling changes.\n11. **Storage and cost.** Each call and text is stored in Firestore. Consider a TTL or a cleanup job (for example, delete after 90 days). Heartbeats, syncs and location updates count toward Firestore usage.\n12. **Real-time location is sensitive.** Background location is one of the most restricted permissions on Google Play. It is also the most sensitive data here. Keep the child informed, and use the pause switch openly. Android's battery saving (Doze) can delay updates, and the location service may not restart after a reboot until the app is opened. Tele then shows a \\\"Location: partly\\\" or \\\"off\\\" status on the child's phone.\n13. **Legal.** This app processes a child's personal data. Check the rules that apply where you live. For Uganda, that includes the Data Protection and Privacy Act, 2019. Be open with your child about what the app does, which is what this design already does.\n\n---\n\n## 6. Project layout\n\n```\ntele/\n├── README.md\n├── .gitignore\n├── firebase.json                      Firestore rules config (run firebase commands from here)\n├── android/                           Android Studio project (Kotlin), Gradle 8.7 wrapper\n│   ├── settings.gradle.kts, build.gradle.kts, gradle.properties\n│   ├── gradlew, gradlew.bat, gradle/wrapper/\n│   └── app/\n│       ├── build.gradle.kts\n│       ├── google-services.json       (you add this; gitignored)\n│       └── src/main/\n│           ├── AndroidManifest.xml\n│           ├── java/com/tele/child/\n│           │   ├── MainActivity.kt          setup steps, SOS button, status\n│           │   ├── PairActivity.kt          enter 6-digit link code\n│           │   ├── LogActivity.kt           \\\"what my parent can see\\\"\n│           │   ├── ComposeActivity.kt       minimal SMS send (default-SMS requirement)\n│           │   ├── SupervisionService.kt    permanent notice + sync triggers\n│           │   ├── LocationService.kt       real-time location (visible notice, parent pause)\n│           │   ├── SyncWorker.kt            WorkManager sync every 15 min\n│           │   ├── Repo.kt                  Firebase writes/reads\n│           │   ├── CallLogReader.kt         call log metadata\n│           │   ├── SmsReader.kt             SMS (body only if default)\n│           │   ├── SmsDeliverReceiver.kt   incoming SMS when default\n│           │   ├── Sos.kt                   location + emergency text\n│           │   ├── Permissions.kt           permission list + SMS role\n│           │   ├── Prefs.kt, Models.kt, NotificationChannels.kt, TeleApp.kt\n│           │   └── BootReceiver.kt, MmsReceiver.kt, RespondViaMessageService.kt\n│           └── res/                         layouts, strings, icon\n├── web/\n│   └── index.html                     Parent dashboard (Firebase, demo mode included)\n├── firebase/\n│   └── firestore.rules                Security rules\n└── scripts/\n    └── build-single-file.py           Builds tele-vercel/index.html (one-file deliverable)\n```\n", "android/app/build.gradle.kts": "plugins {\n    id(\"com.android.application\")\n    id(\"org.jetbrains.kotlin.android\")\n    id(\"com.google.gms.google-services\")   // needs app/google-services.json (see README)\n}\n\nandroid {\n    namespace = \"com.tele.child\"\n    compileSdk = 34\n\n    defaultConfig {\n        applicationId = \"com.tele.child\"\n        minSdk = 26            // Android 8.0+\n        targetSdk = 34\n        versionCode = 1\n        versionName = \"1.0.0\"\n    }\n\n    buildTypes {\n        release {\n            isMinifyEnabled = false\n        }\n    }\n\n    compileOptions {\n        sourceCompatibility = JavaVersion.VERSION_17\n        targetCompatibility = JavaVersion.VERSION_17\n    }\n    kotlinOptions {\n        jvmTarget = \"17\"\n    }\n    buildFeatures {\n        viewBinding = true\n    }\n}\n\ndependencies {\n    implementation(\"androidx.core:core-ktx:1.13.1\")\n    implementation(\"androidx.appcompat:appcompat:1.7.0\")\n    implementation(\"com.google.android.material:material:1.12.0\")\n    implementation(\"androidx.work:work-runtime-ktx:2.9.1\")\n    implementation(\"androidx.lifecycle:lifecycle-runtime-ktx:2.8.4\")\n\n    implementation(platform(\"com.google.firebase:firebase-bom:33.1.2\"))\n    implementation(\"com.google.firebase:firebase-auth\")\n    implementation(\"com.google.firebase:firebase-firestore\")\n\n    implementation(\"com.google.android.gms:play-services-location:21.3.0\")\n    implementation(\"org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1\")\n    implementation(\"org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1\")\n}\n", "android/app/proguard-rules.pro": "# Tele: no custom rules needed (minification is off in this version).\n", "android/app/src/main/AndroidManifest.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\">\n\n    <!-- Runtime permissions. Each one is requested in an Android system dialog the child sees.\n         Location is requested in setup only after the child reads what Tele shares, and a notice is shown while it is shared. -->\n    <uses-permission android:name=\"android.permission.READ_CALL_LOG\" />\n    <uses-permission android:name=\"android.permission.READ_SMS\" />\n    <uses-permission android:name=\"android.permission.SEND_SMS\" />\n    <uses-permission android:name=\"android.permission.READ_CONTACTS\" />\n    <uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\" />\n    <!-- Real-time location: asked separately, after the child allows precise location. Shown openly in Android settings. -->\n    <uses-permission android:name=\"android.permission.ACCESS_BACKGROUND_LOCATION\" />\n\n    <!-- Normal (install-time) permissions -->\n    <uses-permission android:name=\"android.permission.INTERNET\" />\n    <uses-permission android:name=\"android.permission.ACCESS_NETWORK_STATE\" />\n    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />\n    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_DATA_SYNC\" />\n    <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE_LOCATION\" />\n    <uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\" />\n    <!-- Android 13+: needed so the required supervision notification can be shown -->\n    <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />\n\n    <application\n        android:name=\".TeleApp\"\n        android:allowBackup=\"false\"\n        android:icon=\"@mipmap/ic_launcher\"\n        android:label=\"@string/app_name\"\n        android:roundIcon=\"@mipmap/ic_launcher_round\"\n        android:supportsRtl=\"true\"\n        android:theme=\"@style/Theme.Tele\">\n\n        <!-- Visible launcher icon: Tele is never hidden -->\n        <activity\n            android:name=\".MainActivity\"\n            android:exported=\"true\">\n            <intent-filter>\n                <action android:name=\"android.intent.action.MAIN\" />\n                <category android:name=\"android.intent.category.LAUNCHER\" />\n            <\/intent-filter>\n        <\/activity>\n\n        <activity\n            android:name=\".PairActivity\"\n            android:exported=\"false\"\n            android:label=\"@string/pair_title\" />\n\n        <activity\n            android:name=\".LogActivity\"\n            android:exported=\"false\"\n            android:label=\"@string/log_title\" />\n\n        <!-- Compose screen: required for Tele to be eligible as the default SMS app -->\n        <activity\n            android:name=\".ComposeActivity\"\n            android:exported=\"true\"\n            android:label=\"@string/compose_title\">\n            <intent-filter>\n                <action android:name=\"android.intent.action.SENDTO\" />\n                <category android:name=\"android.intent.category.DEFAULT\" />\n                <category android:name=\"android.intent.category.BROWSABLE\" />\n                <data android:scheme=\"sms\" />\n                <data android:scheme=\"smsto\" />\n                <data android:scheme=\"mms\" />\n                <data android:scheme=\"mmsto\" />\n            <\/intent-filter>\n            <intent-filter>\n                <action android:name=\"android.intent.action.SEND\" />\n                <action android:name=\"android.intent.action.SENDTO\" />\n                <category android:name=\"android.intent.category.DEFAULT\" />\n                <data android:mimeType=\"text/plain\" />\n            <\/intent-filter>\n        <\/activity>\n\n        <!-- Real-time location sharing. Has its own visible notice. Only runs when location is allowed and linked. -->\n        <service\n            android:name=\".LocationService\"\n            android:exported=\"false\"\n            android:foregroundServiceType=\"location\" />\n\n        <!-- The persistent, non-hideable supervision notice runs in this service -->\n        <service\n            android:name=\".SupervisionService\"\n            android:exported=\"false\"\n            android:foregroundServiceType=\"dataSync\" />\n\n        <receiver\n            android:name=\".BootReceiver\"\n            android:exported=\"false\">\n            <intent-filter>\n                <action android:name=\"android.intent.action.BOOT_COMPLETED\" />\n            <\/intent-filter>\n        <\/receiver>\n\n        <!-- Default-SMS-app requirements (receivers/service the system needs to see) -->\n        <receiver\n            android:name=\".SmsDeliverReceiver\"\n            android:exported=\"true\"\n            android:permission=\"android.permission.BROADCAST_SMS\">\n            <intent-filter android:priority=\"1\">\n                <action android:name=\"android.provider.Telephony.SMS_DELIVER\" />\n            <\/intent-filter>\n        <\/receiver>\n\n        <receiver\n            android:name=\".MmsReceiver\"\n            android:exported=\"true\"\n            android:permission=\"android.permission.BROADCAST_WAP_PUSH\">\n            <intent-filter android:priority=\"1\">\n                <action android:name=\"android.provider.Telephony.WAP_PUSH_DELIVER\" />\n                <data android:mimeType=\"application/vnd.wap.mms-message\" />\n            <\/intent-filter>\n        <\/receiver>\n\n        <service\n            android:name=\".RespondViaMessageService\"\n            android:exported=\"true\"\n            android:permission=\"android.permission.SEND_RESPOND_VIA_MESSAGE\">\n            <intent-filter>\n                <action android:name=\"android.intent.action.RESPOND_VIA_MESSAGE\" />\n                <data android:scheme=\"sms\" />\n                <data android:scheme=\"smsto\" />\n                <data android:scheme=\"mms\" />\n                <data android:scheme=\"mmsto\" />\n            <\/intent-filter>\n        <\/service>\n    <\/application>\n<\/manifest>\n", "android/app/src/main/java/com/tele/child/BootReceiver.kt": "package com.tele.child\n\nimport android.content.BroadcastReceiver\nimport android.content.Context\nimport android.content.Intent\n\n/** Restarts the VISIBLE supervision services after reboot, so supervision is never silently off. */\nclass BootReceiver : BroadcastReceiver() {\n    override fun onReceive(context: Context, intent: Intent) {\n        if (intent.action != Intent.ACTION_BOOT_COMPLETED) return\n        if (!Prefs.consentAccepted(context) || !Prefs.isLinked(context)) return\n        SupervisionService.start(context)\n        // Android may refuse a location service started at boot. If so, it starts when the app is next opened.\n        runCatching { LocationService.start(context) }\n    }\n}\n", "android/app/src/main/java/com/tele/child/CallLogReader.kt": "package com.tele.child\n\nimport android.content.Context\nimport android.net.Uri\nimport android.provider.CallLog\nimport android.provider.ContactsContract\n\nobject CallLogReader {\n    private val PROJECTION = arrayOf(\n        CallLog.Calls._ID,\n        CallLog.Calls.NUMBER,\n        CallLog.Calls.CACHED_NAME,\n        CallLog.Calls.DURATION,\n        CallLog.Calls.DATE,\n        CallLog.Calls.TYPE\n    )\n\n    /**\n     * Metadata only: number, name if saved, duration, time, direction/type.\n     * afterId == null -> newest [limit] records. Otherwise records with _ID > afterId, oldest first.\n     */\n    fun read(ctx: Context, afterId: Long?, limit: Int): List<CallEntry> {\n        if (!Permissions.granted(ctx, android.Manifest.permission.READ_CALL_LOG)) return emptyList()\n\n        val selection = if (afterId == null) null else \"${CallLog.Calls._ID} > ?\"\n        val args = if (afterId == null) null else arrayOf(afterId.toString())\n        val order = if (afterId == null) \"${CallLog.Calls._ID} DESC LIMIT $limit\"\n                    else \"${CallLog.Calls._ID} ASC LIMIT $limit\"\n\n        val out = mutableListOf<CallEntry>()\n        ctx.contentResolver.query(CallLog.Calls.CONTENT_URI, PROJECTION, selection, args, order)?.use { c ->\n            while (c.moveToNext()) {\n                val number = c.getString(1)?.takeIf { it.isNotBlank() } ?: \"Private\"\n                val cachedName = c.getString(2)?.takeIf { it.isNotBlank() }\n                out += CallEntry(\n                    id = c.getLong(0),\n                    number = number,\n                    name = cachedName ?: contactNameFor(ctx, number),\n                    durationSec = c.getLong(3),\n                    ts = c.getLong(4),\n                    type = typeName(c.getInt(5))\n                )\n            }\n        }\n        return if (afterId == null) out.reversed() else out\n    }\n\n    private fun typeName(type: Int): String = when (type) {\n        CallLog.Calls.INCOMING_TYPE -> \"incoming\"\n        CallLog.Calls.OUTGOING_TYPE -> \"outgoing\"\n        CallLog.Calls.MISSED_TYPE -> \"missed\"\n        CallLog.Calls.VOICEMAIL_TYPE -> \"voicemail\"\n        CallLog.Calls.REJECTED_TYPE -> \"rejected\"\n        6 -> \"blocked\" // CallLog.Calls.BLOCKED_TYPE (API 24+)\n        else -> \"other\"\n    }\n\n    /** Name from contacts. Only runs if the child allowed READ_CONTACTS. */\n    fun contactNameFor(ctx: Context, number: String): String? {\n        if (number == \"Private\" || !Permissions.granted(ctx, android.Manifest.permission.READ_CONTACTS)) return null\n        val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number))\n        ctx.contentResolver.query(uri, arrayOf(ContactsContract.PhoneLookup.DISPLAY_NAME), null, null, null)?.use {\n            if (it.moveToFirst()) return it.getString(0)\n        }\n        return null\n    }\n}\n", "android/app/src/main/java/com/tele/child/ComposeActivity.kt": "package com.tele.child\n\nimport android.Manifest\nimport android.content.Intent\nimport android.os.Build\nimport android.os.Bundle\nimport android.telephony.SmsManager\nimport androidx.activity.result.contract.ActivityResultContracts\nimport androidx.appcompat.app.AppCompatActivity\nimport com.tele.child.databinding.ActivityComposeBinding\n\n/**\n * Minimal send screen. Required for the default-SMS role (Android expects the default app to\n * handle SMS sending). Sending uses SEND_SMS, which the child is asked for openly.\n */\nclass ComposeActivity : AppCompatActivity() {\n    private lateinit var b: ActivityComposeBinding\n\n    private val smsPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->\n        if (granted) send() else showPermissionDenied()\n    }\n\n    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n        b = ActivityComposeBinding.inflate(layoutInflater)\n        setContentView(b.root)\n\n        val to = intent?.data?.schemeSpecificPart?.substringBefore('?').orEmpty()\n        b.toInput.setText(to)\n        b.bodyInput.setText(intent?.getStringExtra(Intent.EXTRA_TEXT).orEmpty())\n\n        b.btnSend.setOnClickListener {\n            if (Permissions.granted(this, Manifest.permission.SEND_SMS)) send()\n            else smsPermission.launch(Manifest.permission.SEND_SMS)\n        }\n    }\n\n    private fun showPermissionDenied() {\n        b.composeStatus.text = \"SMS permission was not allowed, so Tele cannot send texts.\"\n    }\n\n    @Suppress(\"DEPRECATION\")\n    private fun send() {\n        val to = b.toInput.text.toString().trim()\n        val body = b.bodyInput.text.toString().trim()\n        if (to.isEmpty() || body.isEmpty()) {\n            b.composeStatus.text = \"Enter a number and a message.\"\n            return\n        }\n        try {\n            val sms = if (Build.VERSION.SDK_INT >= 31) getSystemService(SmsManager::class.java)\n                      else SmsManager.getDefault()\n            sms.sendTextMessage(to, null, body, null, null)\n            b.composeStatus.text = \"Sent.\"\n            b.bodyInput.setText(\"\")\n        } catch (e: Exception) {\n            b.composeStatus.text = \"Could not send: ${e.message}\"\n        }\n    }\n}\n", "android/app/src/main/java/com/tele/child/LocationService.kt": "package com.tele.child\n\nimport android.annotation.SuppressLint\nimport android.app.Notification\nimport android.app.NotificationManager\nimport android.app.PendingIntent\nimport android.app.Service\nimport android.content.Context\nimport android.content.Intent\nimport android.content.pm.ServiceInfo\nimport android.os.IBinder\nimport android.os.Looper\nimport androidx.core.app.NotificationCompat\nimport androidx.core.app.ServiceCompat\nimport androidx.core.content.ContextCompat\nimport com.google.android.gms.location.FusedLocationProviderClient\nimport com.google.android.gms.location.LocationCallback\nimport com.google.android.gms.location.LocationRequest\nimport com.google.android.gms.location.LocationResult\nimport com.google.android.gms.location.LocationServices\nimport com.google.android.gms.location.Priority\nimport com.google.firebase.firestore.ListenerRegistration\nimport kotlinx.coroutines.CoroutineScope\nimport kotlinx.coroutines.Dispatchers\nimport kotlinx.coroutines.SupervisorJob\nimport kotlinx.coroutines.cancel\nimport kotlinx.coroutines.launch\n\n/**\n * Real-time location sharing with the parent.\n *  - Runs as a visible foreground service with its own notice (\"Tele is sharing this phone's location with Dad\").\n *  - Starts only if the child allowed location, and only after the child has linked to a parent.\n *  - The parent can pause sharing from the dashboard. The child's notice then says it is paused.\n *  - Updates are sent about once a minute. Android may delay them when the phone is in deep sleep.\n */\nclass LocationService : Service() {\n    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)\n    private lateinit var client: FusedLocationProviderClient\n    private var flagListener: ListenerRegistration? = null\n    private var updatesActive = false\n\n    private val callback = object : LocationCallback() {\n        override fun onLocationResult(result: LocationResult) {\n            val loc = result.lastLocation ?: return\n            scope.launch {\n                runCatching { Repo.uploadLocation(this@LocationService, loc) }\n            }\n        }\n    }\n\n    override fun onCreate() {\n        super.onCreate()\n        NotificationChannels.create(this)\n        client = LocationServices.getFusedLocationProviderClient(this)\n    }\n\n    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {\n        // Checked before startForeground: the location foreground type needs the permission at runtime.\n        if (!canStart(this)) {\n            stopSelf()\n            return START_NOT_STICKY\n        }\n        ServiceCompat.startForeground(\n            this,\n            NOTIFICATION_ID,\n            buildNotification(this, sharing = false),\n            ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION\n        )\n        watchSharingFlag()\n        return START_STICKY\n    }\n\n    /** The parent's \"locationSharing\" switch on the device record controls whether we send updates. */\n    private fun watchSharingFlag() {\n        if (flagListener != null) return\n        val ref = Repo.deviceRef(this) ?: return\n        flagListener = ref.addSnapshotListener { snap, _ ->\n            val share = snap?.getBoolean(\"locationSharing\") ?: true\n            if (share) startUpdates() else stopUpdates()\n        }\n    }\n\n    @SuppressLint(\"MissingPermission\")  // checked in canStart()\n    private fun startUpdates() {\n        if (updatesActive) return\n        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, UPDATE_INTERVAL_MS)\n            .setMinUpdateIntervalMillis(MIN_INTERVAL_MS)\n            .build()\n        client.requestLocationUpdates(request, callback, Looper.getMainLooper())\n        updatesActive = true\n        updateNotification(sharing = true)\n    }\n\n    private fun stopUpdates() {\n        if (updatesActive) client.removeLocationUpdates(callback)\n        updatesActive = false\n        updateNotification(sharing = false)\n    }\n\n    private fun updateNotification(sharing: Boolean) {\n        getSystemService(NotificationManager::class.java)\n            .notify(NOTIFICATION_ID, buildNotification(this, sharing))\n    }\n\n    override fun onDestroy() {\n        flagListener?.remove()\n        if (updatesActive) client.removeLocationUpdates(callback)\n        scope.cancel()\n        super.onDestroy()\n    }\n\n    override fun onBind(intent: Intent?): IBinder? = null\n\n    companion object {\n        const val NOTIFICATION_ID = 1002\n        private const val UPDATE_INTERVAL_MS = 60_000L\n        private const val MIN_INTERVAL_MS = 30_000L\n\n        fun canStart(ctx: Context): Boolean = Prefs.isLinked(ctx) && Permissions.hasLocationAlways(ctx)\n\n        /** Starts only when allowed. Does nothing otherwise, so the child is never surprised by a service it didn't allow. */\n        fun start(ctx: Context) {\n            if (canStart(ctx)) ContextCompat.startForegroundService(ctx, Intent(ctx, LocationService::class.java))\n        }\n\n        fun buildNotification(ctx: Context, sharing: Boolean): Notification {\n            val openApp = PendingIntent.getActivity(\n                ctx, 1, Intent(ctx, MainActivity::class.java),\n                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT\n            )\n            val text = if (sharing) \"Tele is sharing this phone's location with Dad now.\"\n                       else \"Location sharing is paused by Dad.\"\n            return NotificationCompat.Builder(ctx, NotificationChannels.LOCATION)\n                .setSmallIcon(R.drawable.ic_notification)\n                .setContentTitle(\"Tele: location\")\n                .setContentText(text)\n                .setContentIntent(openApp)\n                .setOngoing(true)\n                .setOnlyAlertOnce(true)\n                .setCategory(NotificationCompat.CATEGORY_SERVICE)\n                .setPriority(NotificationCompat.PRIORITY_LOW)\n                .build()\n        }\n    }\n}\n", "android/app/src/main/java/com/tele/child/LogActivity.kt": "package com.tele.child\n\nimport android.os.Bundle\nimport android.widget.ArrayAdapter\nimport androidx.appcompat.app.AppCompatActivity\nimport androidx.lifecycle.lifecycleScope\nimport com.tele.child.databinding.ActivityLogBinding\nimport kotlinx.coroutines.Dispatchers\nimport kotlinx.coroutines.launch\nimport kotlinx.coroutines.withContext\nimport java.text.SimpleDateFormat\nimport java.util.Date\nimport java.util.Locale\n\n/** Shows the child exactly what the parent can see, read from the same sources. */\nclass LogActivity : AppCompatActivity() {\n    private data class Row(val ts: Long, val text: String)\n\n    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n        val b = ActivityLogBinding.inflate(layoutInflater)\n        setContentView(b.root)\n\n        val isDefault = SmsRole.isDefault(this)\n        b.logHeader.text = if (isDefault)\n            \"Tele is your default SMS app. Texts show content.\"\n        else\n            \"Tele is NOT your default SMS app. Texts show sender and time only.\"\n\n        lifecycleScope.launch {\n            val rows = withContext(Dispatchers.IO) {\n                val fmt = SimpleDateFormat(\"EEE d MMM HH:mm\", Locale.getDefault())\n                val calls = CallLogReader.read(this@LogActivity, null, 100).map { c ->\n                    val who = c.name ?: c.number\n                    val dur = if (c.durationSec > 0) \" · ${c.durationSec / 60}m ${c.durationSec % 60}s\" else \"\"\n                    Row(c.ts, \"CALL · ${c.type} · $who$dur · ${fmt.format(Date(c.ts))}\")\n                }\n                val sms = SmsReader.read(this@LogActivity, null, 100, includeBody = isDefault).map { m ->\n                    val who = m.name ?: m.address\n                    val content = m.body ?: \"[text content hidden: Tele is not the default SMS app]\"\n                    Row(m.ts, \"TEXT · ${m.folder} · $who · ${fmt.format(Date(m.ts))}\\n$content\")\n                }\n                (calls + sms).sortedByDescending { it.ts }\n            }\n            b.logList.adapter = ArrayAdapter(\n                this@LogActivity,\n                android.R.layout.simple_list_item_1,\n                rows.map { it.text }\n            )\n        }\n    }\n}\n", "android/app/src/main/java/com/tele/child/MainActivity.kt": "package com.tele.child\n\nimport android.app.AlertDialog\nimport android.content.Intent\nimport android.os.Build\nimport android.os.Bundle\nimport android.widget.Toast\nimport androidx.activity.result.contract.ActivityResultContracts\nimport androidx.appcompat.app.AppCompatActivity\nimport androidx.core.app.NotificationManagerCompat\nimport androidx.lifecycle.lifecycleScope\nimport com.tele.child.databinding.ActivityMainBinding\nimport kotlinx.coroutines.launch\n\nclass MainActivity : AppCompatActivity() {\n    private lateinit var b: ActivityMainBinding\n\n    private val permissionLauncher = registerForActivityResult(\n        ActivityResultContracts.RequestMultiplePermissions()\n    ) { refreshUi() }\n\n    private val roleLauncher = registerForActivityResult(\n        ActivityResultContracts.StartActivityForResult()\n    ) { refreshUi() }\n\n    private val locationLauncher = registerForActivityResult(\n        ActivityResultContracts.RequestPermission()\n    ) { granted ->\n        if (granted) requestBackgroundLocation()   // second system dialog: \"Allow all the time\"\n        refreshUi()\n    }\n\n    private val backgroundLocationLauncher = registerForActivityResult(\n        ActivityResultContracts.RequestPermission()\n    ) { refreshUi() }\n\n    private val sosLocationLauncher = registerForActivityResult(\n        ActivityResultContracts.RequestPermission()\n    ) { granted -> sendSos(withLocation = granted) }\n\n    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n        b = ActivityMainBinding.inflate(layoutInflater)\n        setContentView(b.root)\n\n        b.btnConsent.setOnClickListener { showConsent() }\n        b.btnPermissions.setOnClickListener { requestSetupPermissions() }\n        b.btnLocation.setOnClickListener { requestLocation() }\n        b.btnDefaultSms.setOnClickListener { explainDefaultSms() }\n        b.btnPair.setOnClickListener {\n            if (!Prefs.consentAccepted(this)) showConsent()\n            else startActivity(Intent(this, PairActivity::class.java))\n        }\n        b.btnLog.setOnClickListener { startActivity(Intent(this, LogActivity::class.java)) }\n        b.btnSos.setOnClickListener { confirmSos() }\n    }\n\n    override fun onResume() {\n        super.onResume()\n        refreshUi()\n    }\n\n    private fun refreshUi() {\n        val consent = Prefs.consentAccepted(this)\n        val linked = Prefs.isLinked(this)\n        val allowed = Permissions.SETUP.count { Permissions.granted(this, it) }\n        val isDefaultSms = SmsRole.isDefault(this)\n        val notificationsOn = NotificationManagerCompat.from(this).areNotificationsEnabled()\n\n        b.supervisionBanner.text = when {\n            linked && consent -> getString(com.tele.child.R.string.supervision_notice)\n            else -> \"Tele is not supervising this phone yet. Nothing is shared until you link to a parent.\"\n        }\n\n        val locationText = when {\n            Permissions.hasLocationAlways(this) -> \"on (shared in real time while supervision is on)\"\n            Permissions.hasLocation(this) -> \"partly: allow \\\"Allow all the time\\\" for real-time sharing\"\n            else -> \"off (not allowed)\"\n        }\n\n        b.statusText.text = buildString {\n            appendLine(\"Consent to supervision: ${if (consent) \"yes\" else \"not yet\"}\")\n            appendLine(\"Permissions allowed: $allowed of ${Permissions.SETUP.size}\")\n            appendLine(\"Location: $locationText\")\n            appendLine(\n                \"Texts: \" + if (isDefaultSms) \"Tele is the default SMS app, so text content is shared with your parent.\"\n                else \"Tele is not the default SMS app, so your parent sees only sender and time for texts.\"\n            )\n            appendLine(\"Linked to a parent: ${if (linked) \"yes\" else \"no\"}\")\n            append(\"Notifications: ${if (notificationsOn) \"on\" else \"OFF. Turn them on so the supervision notice is visible.\"}\")\n        }\n\n        if (linked && consent) {\n            SupervisionService.start(this)\n            LocationService.start(this)\n        }\n    }\n\n    private fun showConsent() {\n        AlertDialog.Builder(this)\n            .setTitle(\"What Tele shares\")\n            .setMessage(\n                \"If you link this phone to Dad, Tele will:\\n\\n\" +\n                \"• Share your call log: number, name if saved, time, length, and whether each call was incoming, outgoing or missed.\\n\\n\" +\n                \"• Share your texts' sender, time and folder.\\n\\n\" +\n                \"• Share text content ONLY while Tele is your default SMS app.\\n\\n\" +\n                \"• Share your location in real time while supervision is on. A separate notice stays on your phone while it is shared, and Dad can pause sharing from the dashboard.\\n\\n\" +\n                \"• Keep a notice in your notifications while supervision is on.\\n\\n\" +\n                \"Tele never records calls, never listens to audio, never hides its icon, and never forwards calls.\\n\\n\" +\n                \"Tele does not work with WhatsApp.\"\n            )\n            .setPositiveButton(\"I understand\") { _, _ ->\n                Prefs.setConsentAccepted(this)\n                refreshUi()\n                Toast.makeText(this, \"Next: allow the permissions.\", Toast.LENGTH_SHORT).show()\n            }\n            .setNegativeButton(\"Not now\", null)\n            .show()\n    }\n\n    private fun requestSetupPermissions() {\n        if (!Prefs.consentAccepted(this)) {\n            showConsent()\n            return\n        }\n        permissionLauncher.launch(Permissions.SETUP.toTypedArray())\n    }\n\n    private fun requestLocation() {\n        if (!Prefs.consentAccepted(this)) {\n            showConsent()\n            return\n        }\n        if (Permissions.hasLocationAlways(this)) {\n            Toast.makeText(this, \"Location is already allowed.\", Toast.LENGTH_SHORT).show()\n            return\n        }\n        AlertDialog.Builder(this)\n            .setTitle(\"Share location with Dad?\")\n            .setMessage(\n                \"Android will ask you for location access. Choose \\\"Allow all the time\\\" so Tele can share your location \" +\n                \"when the app is not open. A notice will stay on your phone while your location is shared. \" +\n                \"Dad can pause sharing from the dashboard.\"\n            )\n            .setPositiveButton(\"Continue\") { _, _ ->\n                if (Permissions.hasLocation(this)) requestBackgroundLocation()\n                else locationLauncher.launch(Permissions.LOCATION)\n            }\n            .setNegativeButton(\"Not now\", null)\n            .show()\n    }\n\n    private fun requestBackgroundLocation() {\n        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && !Permissions.hasLocationAlways(this)) {\n            backgroundLocationLauncher.launch(Permissions.BACKGROUND_LOCATION)\n        }\n    }\n\n    private fun explainDefaultSms() {\n        if (!Prefs.consentAccepted(this)) {\n            showConsent()\n            return\n        }\n        AlertDialog.Builder(this)\n            .setTitle(\"Set Tele as default SMS app?\")\n            .setMessage(\n                \"Android will ask you to confirm.\\n\\n\" +\n                \"While Tele is the default SMS app, Dad can see the content of your texts. \" +\n                \"Tele replaces your usual messaging app while it is the default. \" +\n                \"You can change the default back in Android Settings at any time, and then Dad will see only sender and time.\"\n            )\n            .setPositiveButton(\"Continue\") { _, _ ->\n                roleLauncher.launch(SmsRole.requestIntent(this))\n            }\n            .setNegativeButton(\"Not now\", null)\n            .show()\n    }\n\n    private fun confirmSos() {\n        AlertDialog.Builder(this)\n            .setTitle(\"Send SOS to Dad?\")\n            .setMessage(\n                \"Dad will be alerted now, with your current location if you allow it. \" +\n                \"Tele shares your location once for this SOS.\"\n            )\n            .setPositiveButton(\"Send SOS\") { _, _ ->\n                if (Permissions.hasLocation(this)) sendSos(withLocation = true)\n                else sosLocationLauncher.launch(Permissions.LOCATION)\n            }\n            .setNegativeButton(\"Cancel\", null)\n            .show()\n    }\n\n    private fun sendSos(withLocation: Boolean) {\n        if (!Prefs.isLinked(this)) {\n            Toast.makeText(this, \"Link to a parent first.\", Toast.LENGTH_LONG).show()\n            return\n        }\n        b.btnSos.isEnabled = false\n        lifecycleScope.launch {\n            try {\n                val location = if (withLocation) Sos.currentLocation(this@MainActivity) else null\n                Repo.sendSos(\n                    this@MainActivity,\n                    location?.latitude, location?.longitude, location?.accuracy\n                )\n                val phone = runCatching { Repo.sosContactPhone(this@MainActivity) }.getOrNull()\n                if (phone != null && Permissions.granted(this@MainActivity, android.Manifest.permission.SEND_SMS)) {\n                    runCatching { Sos.textEmergencyContact(this@MainActivity, phone, location) }\n                }\n                val msg = if (location != null) \"SOS sent to Dad with your location.\"\n                          else \"SOS sent to Dad without location. In danger, call 999 or 112.\"\n                Toast.makeText(this@MainActivity, msg, Toast.LENGTH_LONG).show()\n            } catch (e: Exception) {\n                Toast.makeText(this@MainActivity, \"SOS could not be sent. In danger, call 999 or 112.\", Toast.LENGTH_LONG).show()\n            } finally {\n                b.btnSos.isEnabled = true\n            }\n        }\n    }\n}\n", "android/app/src/main/java/com/tele/child/MmsReceiver.kt": "package com.tele.child\n\nimport android.content.BroadcastReceiver\nimport android.content.Context\nimport android.content.Intent\n\n/**\n * Required so Tele can be the default SMS app. MMS (picture messages) is NOT logged in this version.\n * See README \"Known limitations\".\n */\nclass MmsReceiver : BroadcastReceiver() {\n    override fun onReceive(context: Context, intent: Intent) {\n        // Intentionally empty.\n    }\n}\n", "android/app/src/main/java/com/tele/child/Models.kt": "package com.tele.child\n\ndata class CallEntry(\n    val id: Long,\n    val number: String,\n    val name: String?,\n    val durationSec: Long,\n    val ts: Long,\n    /** incoming | outgoing | missed | rejected | blocked | voicemail | other */\n    val type: String\n)\n\ndata class SmsEntry(\n    val id: Long,\n    val address: String,\n    val name: String?,\n    val ts: Long,\n    /** inbox | sent */\n    val folder: String,\n    /** Null unless Tele is the default SMS app. */\n    val body: String?,\n    val bodyVisible: Boolean\n)\n", "android/app/src/main/java/com/tele/child/NotificationChannels.kt": "package com.tele.child\n\nimport android.app.NotificationChannel\nimport android.app.NotificationManager\nimport android.content.Context\nimport android.os.Build\n\nobject NotificationChannels {\n    const val SUPERVISION = \"supervision\"\n    const val LOCATION = \"location\"\n\n    fun create(ctx: Context) {\n        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return\n        val manager = ctx.getSystemService(NotificationManager::class.java)\n        manager.createNotificationChannel(NotificationChannel(\n            SUPERVISION,\n            ctx.getString(R.string.notification_channel_name),\n            NotificationManager.IMPORTANCE_LOW   // persistent and visible, but silent\n        ).apply {\n            description = ctx.getString(R.string.supervision_notice)\n            setShowBadge(false)\n        })\n        manager.createNotificationChannel(NotificationChannel(\n            LOCATION,\n            \"Location sharing\",\n            NotificationManager.IMPORTANCE_LOW\n        ).apply {\n            description = \"Shown while your location is shared with your parent\"\n            setShowBadge(false)\n        })\n    }\n}\n", "android/app/src/main/java/com/tele/child/PairActivity.kt": "package com.tele.child\n\nimport android.os.Bundle\nimport android.widget.Toast\nimport androidx.appcompat.app.AppCompatActivity\nimport androidx.lifecycle.lifecycleScope\nimport com.tele.child.databinding.ActivityPairBinding\nimport kotlinx.coroutines.launch\n\nclass PairActivity : AppCompatActivity() {\n    private lateinit var b: ActivityPairBinding\n\n    override fun onCreate(savedInstanceState: Bundle?) {\n        super.onCreate(savedInstanceState)\n        b = ActivityPairBinding.inflate(layoutInflater)\n        setContentView(b.root)\n\n        b.btnLink.setOnClickListener {\n            if (!Prefs.consentAccepted(this)) {\n                b.pairStatus.text = \"Read \\\"What Tele shares\\\" on the main screen first.\"\n                return@setOnClickListener\n            }\n            val code = b.codeInput.text.toString().trim()\n            if (!Regex(\"^\\\\d{6}$\").matches(code)) {\n                b.pairStatus.text = \"Enter the 6-digit code from the parent dashboard.\"\n                return@setOnClickListener\n            }\n            b.btnLink.isEnabled = false\n            b.pairStatus.text = \"Linking...\"\n            lifecycleScope.launch {\n                try {\n                    Repo.linkDevice(this@PairActivity, code)\n                    SupervisionService.start(this@PairActivity)\n                    Toast.makeText(this@PairActivity, \"Linked. Supervision is on.\", Toast.LENGTH_LONG).show()\n                    finish()\n                } catch (e: Exception) {\n                    b.pairStatus.text = e.message ?: \"Could not link this phone.\"\n                    b.btnLink.isEnabled = true\n                }\n            }\n        }\n    }\n}\n", "android/app/src/main/java/com/tele/child/Permissions.kt": "package com.tele.child\n\nimport android.Manifest\nimport android.app.role.RoleManager\nimport android.content.Context\nimport android.content.Intent\nimport android.content.pm.PackageManager\nimport android.os.Build\nimport android.provider.Telephony\nimport androidx.core.content.ContextCompat\n\nobject Permissions {\n    /** Requested in the setup flow, each through a normal Android system dialog. */\n    val SETUP = buildList {\n        add(Manifest.permission.READ_CALL_LOG)\n        add(Manifest.permission.READ_SMS)\n        add(Manifest.permission.SEND_SMS)\n        add(Manifest.permission.READ_CONTACTS)\n        if (Build.VERSION.SDK_INT >= 33) add(Manifest.permission.POST_NOTIFICATIONS)\n    }\n\n    /** Precise location, asked first in the location step. */\n    const val LOCATION = Manifest.permission.ACCESS_FINE_LOCATION\n\n    /** \"Allow all the time\". Asked second. Not a separate runtime permission before Android 10. */\n    const val BACKGROUND_LOCATION = Manifest.permission.ACCESS_BACKGROUND_LOCATION\n\n    fun granted(ctx: Context, permission: String): Boolean =\n        ContextCompat.checkSelfPermission(ctx, permission) == PackageManager.PERMISSION_GRANTED\n\n    fun hasLocation(ctx: Context): Boolean = granted(ctx, LOCATION)\n\n    /** Real-time sharing needs precise location, plus background access on Android 10+. */\n    fun hasLocationAlways(ctx: Context): Boolean =\n        granted(ctx, LOCATION) && (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || granted(ctx, BACKGROUND_LOCATION))\n\n    /** Sent to the parent dashboard so the parent can see what Tele is allowed to read. */\n    fun status(ctx: Context): Map<String, Boolean> = mapOf(\n        \"callLog\" to granted(ctx, Manifest.permission.READ_CALL_LOG),\n        \"sms\" to granted(ctx, Manifest.permission.READ_SMS),\n        \"sendSms\" to granted(ctx, Manifest.permission.SEND_SMS),\n        \"contacts\" to granted(ctx, Manifest.permission.READ_CONTACTS),\n        \"location\" to hasLocation(ctx),\n        \"backgroundLocation\" to hasLocationAlways(ctx)\n    )\n}\n\nobject SmsRole {\n    /** True only when Tele is the system default SMS app. This is the ONLY condition under which SMS text is read. */\n    fun isDefault(ctx: Context): Boolean =\n        Telephony.Sms.getDefaultSmsPackage(ctx) == ctx.packageName\n\n    fun requestIntent(ctx: Context): Intent =\n        if (Build.VERSION.SDK_INT >= 29) {\n            val rm = ctx.getSystemService(RoleManager::class.java)\n            rm.createRequestRoleIntent(RoleManager.ROLE_SMS)\n        } else {\n            Intent(Telephony.Sms.Intents.ACTION_CHANGE_DEFAULT)\n                .putExtra(Telephony.Sms.Intents.EXTRA_PACKAGE_NAME, ctx.packageName)\n        }\n}\n", "android/app/src/main/java/com/tele/child/Prefs.kt": "package com.tele.child\n\nimport android.content.Context\n\n/** Local state only. Nothing here is hidden from the child. */\nobject Prefs {\n    private const val FILE = \"tele_prefs\"\n    private const val KEY_CONSENT_AT = \"consent_at\"\n    private const val KEY_FAMILY_ID = \"family_id\"\n    private const val KEY_DEVICE_ID = \"device_id\"\n    private const val KEY_LAST_CALL_ID = \"last_call_id\"\n    private const val KEY_LAST_SMS_ID = \"last_sms_id\"\n\n    private fun sp(ctx: Context) = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE)\n\n    fun consentAccepted(ctx: Context): Boolean = sp(ctx).getLong(KEY_CONSENT_AT, 0L) > 0L\n    fun setConsentAccepted(ctx: Context) = sp(ctx).edit().putLong(KEY_CONSENT_AT, System.currentTimeMillis()).apply()\n\n    fun familyId(ctx: Context): String? = sp(ctx).getString(KEY_FAMILY_ID, null)\n    fun deviceId(ctx: Context): String? = sp(ctx).getString(KEY_DEVICE_ID, null)\n    fun isLinked(ctx: Context): Boolean = familyId(ctx) != null && deviceId(ctx) != null\n\n    fun setLinked(ctx: Context, familyId: String, deviceId: String) {\n        sp(ctx).edit()\n            .putString(KEY_FAMILY_ID, familyId)\n            .putString(KEY_DEVICE_ID, deviceId)\n            .putLong(KEY_LAST_CALL_ID, -1L)   // -1 = first sync sends only the newest records\n            .putLong(KEY_LAST_SMS_ID, -1L)\n            .apply()\n    }\n\n    /** -1 means \"never synced\"; otherwise the highest call-log _ID already uploaded. */\n    fun lastCallId(ctx: Context): Long = sp(ctx).getLong(KEY_LAST_CALL_ID, -1L)\n    fun setLastCallId(ctx: Context, id: Long) = sp(ctx).edit().putLong(KEY_LAST_CALL_ID, id).apply()\n\n    fun lastSmsId(ctx: Context): Long = sp(ctx).getLong(KEY_LAST_SMS_ID, -1L)\n    fun setLastSmsId(ctx: Context, id: Long) = sp(ctx).edit().putLong(KEY_LAST_SMS_ID, id).apply()\n}\n", "android/app/src/main/java/com/tele/child/Repo.kt": "package com.tele.child\n\nimport android.content.Context\nimport android.os.Build\nimport com.google.firebase.auth.FirebaseAuth\nimport com.google.firebase.firestore.CollectionReference\nimport com.google.firebase.firestore.DocumentReference\nimport com.google.firebase.firestore.FieldValue\nimport com.google.firebase.firestore.FirebaseFirestore\nimport com.google.firebase.firestore.SetOptions\nimport com.google.firebase.Timestamp\nimport android.location.Location\nimport java.util.Date\nimport kotlinx.coroutines.tasks.await\nimport java.util.UUID\n\n/**\n * Firestore layout (see firebase/firestore.rules):\n *   families/{familyId}/devices/{deviceId}            device status, sosContactPhone (set by parent)\n *   families/{familyId}/devices/{deviceId}/calls/c{id} call metadata\n *   families/{familyId}/devices/{deviceId}/sms/s{id}   SMS metadata, body only when default SMS app\n *   families/{familyId}/devices/{deviceId}/sos/{auto} SOS events\n *   pairings/{6-digit code}                            short-lived link codes created by the parent\n */\nobject Repo {\n    private const val PAGE = 200\n    private const val HISTORY_DAYS = 7L\n    private val db: FirebaseFirestore get() = FirebaseFirestore.getInstance()\n\n    suspend fun ensureSignedIn(): String {\n        val auth = FirebaseAuth.getInstance()\n        auth.currentUser?.let { return it.uid }\n        return auth.signInAnonymously().await().user!!.uid\n    }\n\n    fun deviceRef(ctx: Context): DocumentReference? {\n        val fid = Prefs.familyId(ctx) ?: return null\n        val did = Prefs.deviceId(ctx) ?: return null\n        return db.collection(\"families\").document(fid).collection(\"devices\").document(did)\n    }\n\n    @Suppress(\"DEPRECATION\")\n    private fun appVersion(ctx: Context): String =\n        runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: \"unknown\"\n\n    /** Links this phone to a family using a parent-generated code. Creates a new device record each time. */\n    suspend fun linkDevice(ctx: Context, code: String) {\n        val uid = ensureSignedIn()\n        val pairing = db.collection(\"pairings\").document(code).get().await()\n        if (!pairing.exists()) throw IllegalStateException(\"That code was not found.\")\n        val familyId = pairing.getString(\"familyId\") ?: throw IllegalStateException(\"That code is invalid.\")\n        val expiresAt = pairing.getTimestamp(\"expiresAt\")?.toDate()?.time ?: 0L\n        if (expiresAt < System.currentTimeMillis()) {\n            throw IllegalStateException(\"That code expired. Ask Dad to create a new one.\")\n        }\n\n        val deviceId = UUID.randomUUID().toString()\n        db.collection(\"families\").document(familyId).collection(\"devices\").document(deviceId).set(\n            mapOf(\n                \"ownerUid\" to uid,\n                \"pairingCode\" to code,\n                \"label\" to Build.MODEL,\n                \"linkedAt\" to FieldValue.serverTimestamp(),\n                \"lastSeen\" to FieldValue.serverTimestamp(),\n                \"defaultSms\" to SmsRole.isDefault(ctx),\n                \"appVersion\" to appVersion(ctx),\n                \"permissions\" to Permissions.status(ctx)\n            )\n        ).await()\n\n        Prefs.setLinked(ctx, familyId, deviceId)\n        // Consume the code so it cannot be reused (best effort).\n        runCatching { db.collection(\"pairings\").document(code).delete().await() }\n    }\n\n    /** Status shown to the parent: last seen, default SMS state, and which permissions are allowed. */\n    suspend fun heartbeat(ctx: Context) {\n        val ref = deviceRef(ctx) ?: return\n        ref.set(\n            mapOf(\n                \"lastSeen\" to FieldValue.serverTimestamp(),\n                \"defaultSms\" to SmsRole.isDefault(ctx),\n                \"appVersion\" to appVersion(ctx),\n                \"permissions\" to Permissions.status(ctx)\n            ),\n            SetOptions.merge()\n        ).await()\n    }\n\n    /** Uploads only records that are new since the last successful upload. */\n    suspend fun syncAll(ctx: Context) {\n        val ref = deviceRef(ctx) ?: return\n        ensureSignedIn()\n        heartbeat(ctx)\n\n        val defaultSms = SmsRole.isDefault(ctx)\n\n        var callAfter: Long? = Prefs.lastCallId(ctx).takeIf { it >= 0 }\n        while (true) {\n            val batch = CallLogReader.read(ctx, callAfter, PAGE)\n            if (batch.isEmpty()) break\n            commit(ref.collection(\"calls\"), batch.map { c ->\n                \"c${c.id}\" to mapOf<String, Any?>(\n                    \"id\" to c.id,\n                    \"number\" to c.number,\n                    \"name\" to c.name,\n                    \"durationSec\" to c.durationSec,\n                    \"ts\" to c.ts,\n                    \"type\" to c.type\n                )\n            })\n            callAfter = batch.maxOf { it.id }\n            Prefs.setLastCallId(ctx, callAfter)\n            if (batch.size < PAGE) break\n        }\n\n        var smsAfter: Long? = Prefs.lastSmsId(ctx).takeIf { it >= 0 }\n        while (true) {\n            // includeBody is tied to the default-SMS state. When Tele is not default, bodies are never read.\n            val batch = SmsReader.read(ctx, smsAfter, PAGE, includeBody = defaultSms)\n            if (batch.isEmpty()) break\n            commit(ref.collection(\"sms\"), batch.map { m ->\n                \"s${m.id}\" to mapOf<String, Any?>(\n                    \"id\" to m.id,\n                    \"address\" to m.address,\n                    \"name\" to m.name,\n                    \"ts\" to m.ts,\n                    \"folder\" to m.folder,\n                    \"body\" to m.body,               // null unless default SMS app\n                    \"bodyVisible\" to m.bodyVisible\n                )\n            })\n            smsAfter = batch.maxOf { it.id }\n            Prefs.setLastSmsId(ctx, smsAfter)\n            if (batch.size < PAGE) break\n        }\n    }\n\n    private suspend fun commit(col: CollectionReference, docs: List<Pair<String, Map<String, Any?>>>) {\n        docs.chunked(400).forEach { chunk ->\n            val batch = db.batch()\n            chunk.forEach { (id, data) -> batch.set(col.document(id), data, SetOptions.merge()) }\n            batch.commit().await()\n        }\n    }\n\n    /** SOS event. Location is included only if the child allowed it when pressing SOS. */\n    suspend fun sendSos(ctx: Context, lat: Double?, lng: Double?, accuracyM: Float?) {\n        val ref = deviceRef(ctx) ?: throw IllegalStateException(\"Not linked\")\n        ensureSignedIn()\n        ref.collection(\"sos\").add(\n            mapOf(\n                \"ts\" to System.currentTimeMillis(),\n                \"lat\" to lat,\n                \"lng\" to lng,\n                \"accuracyM\" to accuracyM?.toDouble(),\n                \"withLocation\" to (lat != null && lng != null)\n            )\n        ).await()\n    }\n\n    /**\n     * Real-time location. \"location/current\" holds the latest point for the live map.\n     * \"locationHistory\" keeps recent points for the trail. Each point has expiresAt (set a TTL policy in Firestore).\n     */\n    suspend fun uploadLocation(ctx: Context, loc: Location) {\n        val ref = deviceRef(ctx) ?: return\n        ensureSignedIn()\n        val point: Map<String, Any> = mapOf(\n            \"lat\" to loc.latitude,\n            \"lng\" to loc.longitude,\n            \"accuracyM\" to loc.accuracy.toDouble(),\n            \"ts\" to loc.time\n        )\n        val batch = db.batch()\n        batch.set(ref.collection(\"location\").document(\"current\"), point)\n        batch.set(\n            ref.collection(\"locationHistory\").document(),\n            point + mapOf(\"expiresAt\" to Timestamp(Date(loc.time + HISTORY_DAYS * 86_400_000L)))\n        )\n        batch.commit().await()\n    }\n\n    /** The emergency contact phone the parent set in the dashboard. */\n    suspend fun sosContactPhone(ctx: Context): String? {\n        val snap = deviceRef(ctx)?.get()?.await() ?: return null\n        return snap.getString(\"sosContactPhone\")?.takeIf { it.isNotBlank() }\n    }\n}\n", "android/app/src/main/java/com/tele/child/RespondViaMessageService.kt": "package com.tele.child\n\nimport android.app.Service\nimport android.content.Intent\nimport android.os.IBinder\n\n/**\n * Required for the default-SMS role (\"quick reply to a call\"). Not implemented in this version.\n */\nclass RespondViaMessageService : Service() {\n    override fun onBind(intent: Intent?): IBinder? = null\n\n    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {\n        stopSelf(startId)\n        return START_NOT_STICKY\n    }\n}\n", "android/app/src/main/java/com/tele/child/SmsDeliverReceiver.kt": "package com.tele.child\n\nimport android.content.BroadcastReceiver\nimport android.content.ContentValues\nimport android.content.Context\nimport android.content.Intent\nimport android.provider.Telephony\nimport android.util.Log\n\n/**\n * Only receives incoming SMS when Tele IS the default SMS app (the system sends SMS_DELIVER to the default app only).\n * It writes the message into the system SMS inbox so the child's texts are stored in one place.\n */\nclass SmsDeliverReceiver : BroadcastReceiver() {\n    override fun onReceive(context: Context, intent: Intent) {\n        val parts = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return\n        val first = parts.firstOrNull() ?: return\n        val body = parts.joinToString(\"\") { it.messageBody ?: \"\" }\n        val values = ContentValues().apply {\n            put(Telephony.Sms.ADDRESS, first.displayOriginatingAddress ?: first.originatingAddress ?: \"\")\n            put(Telephony.Sms.BODY, body)\n            put(Telephony.Sms.DATE, first.timestampMillis)\n            put(Telephony.Sms.READ, 0)\n            put(Telephony.Sms.SEEN, 0)\n            put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_INBOX)\n        }\n\n        val pending = goAsync()\n        Thread {\n            try {\n                context.contentResolver.insert(Telephony.Sms.Inbox.CONTENT_URI, values)\n                SyncScheduler.syncNow(context)\n            } catch (e: Exception) {\n                Log.w(\"Tele\", \"Could not store incoming SMS\", e)\n            } finally {\n                pending.finish()\n            }\n        }.start()\n    }\n}\n", "android/app/src/main/java/com/tele/child/SmsReader.kt": "package com.tele.child\n\nimport android.content.Context\nimport android.provider.Telephony\n\nobject SmsReader {\n    private val PROJECTION_METADATA = arrayOf(\n        Telephony.Sms._ID, Telephony.Sms.ADDRESS, Telephony.Sms.DATE, Telephony.Sms.TYPE\n    )\n    private val PROJECTION_WITH_BODY = arrayOf(\n        Telephony.Sms._ID, Telephony.Sms.ADDRESS, Telephony.Sms.DATE, Telephony.Sms.TYPE, Telephony.Sms.BODY\n    )\n\n    /**\n     * SMS log. The BODY column is only queried when includeBody is true, and the caller passes\n     * includeBody = SmsRole.isDefault(ctx). If Tele is not the default SMS app, text content is never read.\n     */\n    fun read(ctx: Context, afterId: Long?, limit: Int, includeBody: Boolean): List<SmsEntry> {\n        if (!Permissions.granted(ctx, android.Manifest.permission.READ_SMS)) return emptyList()\n\n        val projection = if (includeBody) PROJECTION_WITH_BODY else PROJECTION_METADATA\n        val selection = StringBuilder(\"${Telephony.Sms.TYPE} IN (${Telephony.Sms.MESSAGE_TYPE_INBOX},${Telephony.Sms.MESSAGE_TYPE_SENT})\")\n        val args = mutableListOf<String>()\n        if (afterId != null) {\n            selection.append(\" AND ${Telephony.Sms._ID} > ?\")\n            args += afterId.toString()\n        }\n        val order = if (afterId == null) \"${Telephony.Sms._ID} DESC LIMIT $limit\"\n                    else \"${Telephony.Sms._ID} ASC LIMIT $limit\"\n\n        val out = mutableListOf<SmsEntry>()\n        ctx.contentResolver.query(\n            Telephony.Sms.CONTENT_URI, projection, selection.toString(), args.toTypedArray(), order\n        )?.use { c ->\n            while (c.moveToNext()) {\n                val address = c.getString(1)?.takeIf { it.isNotBlank() } ?: \"Unknown\"\n                val type = c.getInt(3)\n                val body: String? = if (includeBody) c.getString(4) else null\n                out += SmsEntry(\n                    id = c.getLong(0),\n                    address = address,\n                    name = CallLogReader.contactNameFor(ctx, address),\n                    ts = c.getLong(2),\n                    folder = if (type == Telephony.Sms.MESSAGE_TYPE_SENT) \"sent\" else \"inbox\",\n                    body = body,\n                    bodyVisible = includeBody\n                )\n            }\n        }\n        return if (afterId == null) out.reversed() else out\n    }\n}\n", "android/app/src/main/java/com/tele/child/Sos.kt": "package com.tele.child\n\nimport android.annotation.SuppressLint\nimport android.content.Context\nimport android.location.Location\nimport android.os.Build\nimport android.telephony.SmsManager\nimport com.google.android.gms.location.LocationServices\nimport com.google.android.gms.location.Priority\nimport com.google.android.gms.tasks.CancellationTokenSource\nimport kotlinx.coroutines.tasks.await\n\nobject Sos {\n    /** Called only after the child pressed SOS and confirmed. Never runs in the background. */\n    @SuppressLint(\"MissingPermission\")\n    suspend fun currentLocation(ctx: Context): Location? {\n        if (!Permissions.granted(ctx, Permissions.LOCATION)) return null\n        val client = LocationServices.getFusedLocationProviderClient(ctx)\n        val fresh = runCatching {\n            client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token).await()\n        }.getOrNull()\n        return fresh ?: runCatching { client.lastLocation.await() }.getOrNull()\n    }\n\n    /** Text the parent-chosen emergency number (set in the parent dashboard). Requires SEND_SMS. */\n    @Suppress(\"DEPRECATION\")\n    fun textEmergencyContact(ctx: Context, phone: String, location: Location?) {\n        val where = if (location != null)\n            \"My location: https://maps.google.com/?q=${location.latitude},${location.longitude}\"\n        else\n            \"Location was not shared.\"\n        val text = \"Tele SOS from ${Build.MODEL}: I need help. $where\"\n        val sms = if (Build.VERSION.SDK_INT >= 31) ctx.getSystemService(SmsManager::class.java)\n                  else SmsManager.getDefault()\n        sms.sendTextMessage(phone, null, text, null, null)\n    }\n}\n", "android/app/src/main/java/com/tele/child/SupervisionService.kt": "package com.tele.child\n\nimport android.app.Notification\nimport android.app.PendingIntent\nimport android.app.Service\nimport android.content.Context\nimport android.content.Intent\nimport android.content.pm.ServiceInfo\nimport android.database.ContentObserver\nimport android.os.Handler\nimport android.os.IBinder\nimport android.os.Looper\nimport android.provider.CallLog\nimport android.provider.Telephony\nimport androidx.core.app.NotificationCompat\nimport androidx.core.app.ServiceCompat\nimport androidx.core.content.ContextCompat\n\n/**\n * Runs ONLY after the child has accepted the consent screen and linked to a parent.\n * It shows a permanent notification (cannot be swiped away) with the required supervision notice.\n * It does NOT record audio, does NOT track location, and does NOT hide itself.\n */\nclass SupervisionService : Service() {\n    private val handler = Handler(Looper.getMainLooper())\n\n    private val syncSoon = Runnable { SyncScheduler.syncNow(this) }\n\n    private val observer = object : ContentObserver(handler) {\n        override fun onChange(selfChange: Boolean) {\n            // Debounce bursts of call-log / SMS changes into one upload.\n            handler.removeCallbacks(syncSoon)\n            handler.postDelayed(syncSoon, 3_000L)\n        }\n    }\n\n    override fun onCreate() {\n        super.onCreate()\n        NotificationChannels.create(this)\n        runCatching { contentResolver.registerContentObserver(CallLog.Calls.CONTENT_URI, true, observer) }\n        runCatching { contentResolver.registerContentObserver(Telephony.Sms.CONTENT_URI, true, observer) }\n    }\n\n    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {\n        ServiceCompat.startForeground(\n            this,\n            NOTIFICATION_ID,\n            buildNotification(this),\n            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC\n        )\n        if (!Prefs.isLinked(this)) {\n            stopSelf()\n            return START_NOT_STICKY\n        }\n        SyncScheduler.schedulePeriodic(this)\n        SyncScheduler.syncNow(this)\n        return START_STICKY\n    }\n\n    override fun onDestroy() {\n        handler.removeCallbacks(syncSoon)\n        runCatching { contentResolver.unregisterContentObserver(observer) }\n        super.onDestroy()\n    }\n\n    override fun onBind(intent: Intent?): IBinder? = null\n\n    companion object {\n        const val NOTIFICATION_ID = 1001\n\n        fun start(ctx: Context) {\n            ContextCompat.startForegroundService(ctx, Intent(ctx, SupervisionService::class.java))\n        }\n\n        fun buildNotification(ctx: Context): Notification {\n            val openApp = PendingIntent.getActivity(\n                ctx, 0, Intent(ctx, MainActivity::class.java),\n                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT\n            )\n            val notice = ctx.getString(R.string.supervision_notice)\n            return NotificationCompat.Builder(ctx, NotificationChannels.SUPERVISION)\n                .setSmallIcon(R.drawable.ic_notification)\n                .setContentTitle(\"Tele\")\n                .setContentText(notice)\n                .setStyle(NotificationCompat.BigTextStyle().bigText(notice))\n                .setContentIntent(openApp)\n                .setOngoing(true)              // cannot be swiped away\n                .setOnlyAlertOnce(true)\n                .setCategory(NotificationCompat.CATEGORY_SERVICE)\n                .setPriority(NotificationCompat.PRIORITY_LOW)\n                .build()\n        }\n    }\n}\n", "android/app/src/main/java/com/tele/child/SyncWorker.kt": "package com.tele.child\n\nimport android.content.Context\nimport androidx.work.Constraints\nimport androidx.work.CoroutineWorker\nimport androidx.work.ExistingPeriodicWorkPolicy\nimport androidx.work.ExistingWorkPolicy\nimport androidx.work.NetworkType\nimport androidx.work.OneTimeWorkRequestBuilder\nimport androidx.work.PeriodicWorkRequestBuilder\nimport androidx.work.WorkManager\nimport androidx.work.WorkerParameters\nimport java.util.concurrent.TimeUnit\n\nclass SyncWorker(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {\n    override suspend fun doWork(): Result {\n        if (!Prefs.isLinked(applicationContext)) return Result.success()\n        return try {\n            Repo.syncAll(applicationContext)\n            Result.success()\n        } catch (e: Exception) {\n            Result.retry()\n        }\n    }\n}\n\nobject SyncScheduler {\n    private val network = Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()\n\n    fun schedulePeriodic(ctx: Context) {\n        val request = PeriodicWorkRequestBuilder<SyncWorker>(15, TimeUnit.MINUTES)\n            .setConstraints(network)\n            .build()\n        WorkManager.getInstance(ctx).enqueueUniquePeriodicWork(\n            \"tele-periodic-sync\", ExistingPeriodicWorkPolicy.KEEP, request\n        )\n    }\n\n    fun syncNow(ctx: Context) {\n        val request = OneTimeWorkRequestBuilder<SyncWorker>()\n            .setConstraints(network)\n            .build()\n        WorkManager.getInstance(ctx).enqueueUniqueWork(\"tele-sync-now\", ExistingWorkPolicy.KEEP, request)\n    }\n}\n", "android/app/src/main/java/com/tele/child/TeleApp.kt": "package com.tele.child\n\nimport android.app.Application\n\nclass TeleApp : Application() {\n    override fun onCreate() {\n        super.onCreate()\n        NotificationChannels.create(this)\n    }\n}\n", "android/app/src/main/res/drawable/ic_launcher_background.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<shape xmlns:android=\"http://schemas.android.com/apk/res/android\" android:shape=\"rectangle\">\n    <solid android:color=\"@color/tele_teal\" />\n<\/shape>\n", "android/app/src/main/res/drawable/ic_launcher_foreground.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<!-- Shield with a check mark: a visible, honest \"supervised\" icon -->\n<vector xmlns:android=\"http://schemas.android.com/apk/res/android\"\n    android:width=\"108dp\"\n    android:height=\"108dp\"\n    android:viewportWidth=\"108\"\n    android:viewportHeight=\"108\">\n    <path\n        android:fillColor=\"#FFFFFF\"\n        android:pathData=\"M54,26 L76,34 L76,54 C76,69 66,79 54,84 C42,79 32,69 32,54 L32,34 Z\" />\n    <path\n        android:strokeColor=\"@color/tele_teal\"\n        android:strokeWidth=\"5\"\n        android:strokeLineCap=\"round\"\n        android:strokeLineJoin=\"round\"\n        android:pathData=\"M44,54 L51,61 L65,46\" />\n<\/vector>\n", "android/app/src/main/res/drawable/ic_notification.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<vector xmlns:android=\"http://schemas.android.com/apk/res/android\"\n    android:width=\"24dp\"\n    android:height=\"24dp\"\n    android:viewportWidth=\"24\"\n    android:viewportHeight=\"24\">\n    <path\n        android:fillColor=\"#FFFFFFFF\"\n        android:pathData=\"M12,2 L20,5 L20,11 C20,16.5 16.6,20.7 12,22 C7.4,20.7 4,16.5 4,11 L4,5 Z\" />\n<\/vector>\n", "android/app/src/main/res/layout/activity_compose.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<LinearLayout xmlns:android=\"http://schemas.android.com/apk/res/android\"\n    android:layout_width=\"match_parent\"\n    android:layout_height=\"match_parent\"\n    android:orientation=\"vertical\"\n    android:padding=\"16dp\">\n\n    <EditText\n        android:id=\"@+id/toInput\"\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"wrap_content\"\n        android:hint=\"To (phone number)\"\n        android:inputType=\"phone\" />\n\n    <EditText\n        android:id=\"@+id/bodyInput\"\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"wrap_content\"\n        android:layout_marginTop=\"8dp\"\n        android:hint=\"Message\"\n        android:inputType=\"textMultiLine\"\n        android:minLines=\"3\" />\n\n    <Button\n        android:id=\"@+id/btnSend\"\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"wrap_content\"\n        android:layout_marginTop=\"12dp\"\n        android:text=\"Send SMS\" />\n\n    <TextView\n        android:id=\"@+id/composeStatus\"\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"wrap_content\"\n        android:layout_marginTop=\"12dp\" />\n<\/LinearLayout>\n", "android/app/src/main/res/layout/activity_log.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<LinearLayout xmlns:android=\"http://schemas.android.com/apk/res/android\"\n    android:layout_width=\"match_parent\"\n    android:layout_height=\"match_parent\"\n    android:orientation=\"vertical\"\n    android:padding=\"12dp\">\n\n    <TextView\n        android:id=\"@+id/logHeader\"\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"wrap_content\"\n        android:padding=\"8dp\"\n        android:textSize=\"13sp\" />\n\n    <ListView\n        android:id=\"@+id/logList\"\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"match_parent\" />\n<\/LinearLayout>\n", "android/app/src/main/res/layout/activity_main.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<ScrollView xmlns:android=\"http://schemas.android.com/apk/res/android\"\n    android:layout_width=\"match_parent\"\n    android:layout_height=\"match_parent\"\n    android:fillViewport=\"true\">\n\n    <LinearLayout\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"wrap_content\"\n        android:orientation=\"vertical\"\n        android:padding=\"20dp\">\n\n        <TextView\n            android:id=\"@+id/supervisionBanner\"\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:background=\"#E0F2F1\"\n            android:padding=\"12dp\"\n            android:textColor=\"#004D40\"\n            android:textSize=\"15sp\"\n            android:textStyle=\"bold\" />\n\n        <TextView\n            android:id=\"@+id/statusText\"\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:layout_marginTop=\"16dp\"\n            android:textSize=\"15sp\" />\n\n        <Button\n            android:id=\"@+id/btnConsent\"\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:layout_marginTop=\"12dp\"\n            android:text=\"1. Read what Tele shares\" />\n\n        <Button\n            android:id=\"@+id/btnPermissions\"\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:text=\"2. Allow permissions\" />\n\n        <Button\n            android:id=\"@+id/btnLocation\"\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:text=\"3. Allow location (real-time sharing)\" />\n\n        <Button\n            android:id=\"@+id/btnDefaultSms\"\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:text=\"4. Set as default SMS app (to show texts)\" />\n\n        <Button\n            android:id=\"@+id/btnPair\"\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:text=\"5. Link to parent with code\" />\n\n        <Button\n            android:id=\"@+id/btnLog\"\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:layout_marginTop=\"24dp\"\n            android:text=\"View what my parent can see\" />\n\n        <Button\n            android:id=\"@+id/btnSos\"\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:layout_marginTop=\"24dp\"\n            android:backgroundTint=\"#C62828\"\n            android:minHeight=\"72dp\"\n            android:text=\"SOS - Share my location with Dad\"\n            android:textSize=\"17sp\"\n            android:textStyle=\"bold\" />\n\n        <TextView\n            android:layout_width=\"match_parent\"\n            android:layout_height=\"wrap_content\"\n            android:layout_marginTop=\"8dp\"\n            android:text=\"Location is shared in real time while supervision is on, and a notice stays on your phone while it is shared. SOS sends your location right away. Tele never records calls, never hides its icon, and never hides its notice.\"\n            android:textSize=\"12sp\" />\n    <\/LinearLayout>\n<\/ScrollView>\n", "android/app/src/main/res/layout/activity_pair.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<LinearLayout xmlns:android=\"http://schemas.android.com/apk/res/android\"\n    android:layout_width=\"match_parent\"\n    android:layout_height=\"match_parent\"\n    android:orientation=\"vertical\"\n    android:padding=\"20dp\">\n\n    <TextView\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"wrap_content\"\n        android:text=\"Ask your parent for the 6-digit code shown in the Tele parent dashboard. Codes expire after 10 minutes.\"\n        android:textSize=\"15sp\" />\n\n    <EditText\n        android:id=\"@+id/codeInput\"\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"wrap_content\"\n        android:layout_marginTop=\"16dp\"\n        android:hint=\"6-digit code\"\n        android:inputType=\"number\"\n        android:maxLength=\"6\"\n        android:textSize=\"24sp\" />\n\n    <Button\n        android:id=\"@+id/btnLink\"\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"wrap_content\"\n        android:layout_marginTop=\"16dp\"\n        android:text=\"Link this phone\" />\n\n    <TextView\n        android:id=\"@+id/pairStatus\"\n        android:layout_width=\"match_parent\"\n        android:layout_height=\"wrap_content\"\n        android:layout_marginTop=\"16dp\" />\n<\/LinearLayout>\n", "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<adaptive-icon xmlns:android=\"http://schemas.android.com/apk/res/android\">\n    <background android:drawable=\"@drawable/ic_launcher_background\" />\n    <foreground android:drawable=\"@drawable/ic_launcher_foreground\" />\n<\/adaptive-icon>\n", "android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<adaptive-icon xmlns:android=\"http://schemas.android.com/apk/res/android\">\n    <background android:drawable=\"@drawable/ic_launcher_background\" />\n    <foreground android:drawable=\"@drawable/ic_launcher_foreground\" />\n<\/adaptive-icon>\n", "android/app/src/main/res/values/colors.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n    <color name=\"tele_teal\">#0E7C7B<\/color>\n    <color name=\"tele_red\">#C62828<\/color>\n    <color name=\"tele_ink\">#1B1B1F<\/color>\n<\/resources>\n", "android/app/src/main/res/values/strings.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n    <string name=\"app_name\">Tele<\/string>\n    <!-- Exact supervision notice required by the spec. Shown permanently while supervision is on. -->\n    <string name=\"supervision_notice\">This device is supervised by Dad - Call log and SMS visible to parent<\/string>\n    <string name=\"notification_channel_name\">Supervision status<\/string>\n    <string name=\"pair_title\">Link to parent<\/string>\n    <string name=\"log_title\">My call &amp; text log<\/string>\n    <string name=\"compose_title\">Tele messages<\/string>\n<\/resources>\n", "android/app/src/main/res/values/themes.xml": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n    <style name=\"Theme.Tele\" parent=\"Theme.Material3.DayNight\">\n        <item name=\"colorPrimary\">@color/tele_teal<\/item>\n    <\/style>\n<\/resources>\n", "android/build.gradle.kts": "plugins {\n    id(\"com.android.application\") version \"8.5.2\" apply false\n    id(\"org.jetbrains.kotlin.android\") version \"2.0.20\" apply false\n    id(\"com.google.gms.google-services\") version \"4.4.2\" apply false\n}\n", "android/gradle.properties": "# Required for AndroidX libraries (Firebase, WorkManager, appcompat). Without this, the build fails.\nandroid.useAndroidX=true\nandroid.nonTransitiveRClass=true\nkotlin.code.style=official\norg.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8\norg.gradle.parallel=true\n", "android/gradle/wrapper/gradle-wrapper.properties": "distributionBase=GRADLE_USER_HOME\ndistributionPath=wrapper/dists\ndistributionUrl=https\\://services.gradle.org/distributions/gradle-8.7-bin.zip\nnetworkTimeout=10000\nvalidateDistributionUrl=true\nzipStoreBase=GRADLE_USER_HOME\nzipStorePath=wrapper/dists\n", "android/gradlew": "#!/bin/sh\n\n#\n# Copyright © 2015-2021 the original authors.\n#\n# Licensed under the Apache License, Version 2.0 (the \"License\");\n# you may not use this file except in compliance with the License.\n# You may obtain a copy of the License at\n#\n#      https://www.apache.org/licenses/LICENSE-2.0\n#\n# Unless required by applicable law or agreed to in writing, software\n# distributed under the License is distributed on an \"AS IS\" BASIS,\n# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n# See the License for the specific language governing permissions and\n# limitations under the License.\n#\n\n##############################################################################\n#\n#   Gradle start up script for POSIX generated by Gradle.\n#\n#   Important for running:\n#\n#   (1) You need a POSIX-compliant shell to run this script. If your /bin/sh is\n#       noncompliant, but you have some other compliant shell such as ksh or\n#       bash, then to run this script, type that shell name before the whole\n#       command line, like:\n#\n#           ksh Gradle\n#\n#       Busybox and similar reduced shells will NOT work, because this script\n#       requires all of these POSIX shell features:\n#         * functions;\n#         * expansions «$var», «${var}», «${var:-default}», «${var+SET}»,\n#           «${var#prefix}», «${var%suffix}», and «$( cmd )»;\n#         * compound commands having a testable exit status, especially «case»;\n#         * various built-in commands including «command», «set», and «ulimit».\n#\n#   Important for patching:\n#\n#   (2) This script targets any POSIX shell, so it avoids extensions provided\n#       by Bash, Ksh, etc; in particular arrays are avoided.\n#\n#       The \"traditional\" practice of packing multiple parameters into a\n#       space-separated string is a well documented source of bugs and security\n#       problems, so this is (mostly) avoided, by progressively accumulating\n#       options in \"$@\", and eventually passing that to Java.\n#\n#       Where the inherited environment variables (DEFAULT_JVM_OPTS, JAVA_OPTS,\n#       and GRADLE_OPTS) rely on word-splitting, this is performed explicitly;\n#       see the in-line comments for details.\n#\n#       There are tweaks for specific operating systems such as AIX, CygWin,\n#       Darwin, MinGW, and NonStop.\n#\n#   (3) This script is generated from the Groovy template\n#       https://github.com/gradle/gradle/blob/HEAD/subprojects/plugins/src/main/resources/org/gradle/api/internal/plugins/unixStartScript.txt\n#       within the Gradle project.\n#\n#       You can find Gradle at https://github.com/gradle/gradle/.\n#\n##############################################################################\n\n# Attempt to set APP_HOME\n\n# Resolve links: $0 may be a link\napp_path=$0\n\n# Need this for daisy-chained symlinks.\nwhile\n    APP_HOME=${app_path%\"${app_path##*/}\"}  # leaves a trailing /; empty if no leading path\n    [ -h \"$app_path\" ]\ndo\n    ls=$( ls -ld \"$app_path\" )\n    link=${ls#*' -> '}\n    case $link in             #(\n      /*)   app_path=$link ;; #(\n      *)    app_path=$APP_HOME$link ;;\n    esac\ndone\n\n# This is normally unused\n# shellcheck disable=SC2034\nAPP_BASE_NAME=${0##*/}\n# Discard cd standard output in case $CDPATH is set (https://github.com/gradle/gradle/issues/25036)\nAPP_HOME=$( cd \"${APP_HOME:-./}\" > /dev/null && pwd -P ) || exit\n\n# Use the maximum available, or set MAX_FD != -1 to use that value.\nMAX_FD=maximum\n\nwarn () {\n    echo \"$*\"\n} >&2\n\ndie () {\n    echo\n    echo \"$*\"\n    echo\n    exit 1\n} >&2\n\n# OS specific support (must be 'true' or 'false').\ncygwin=false\nmsys=false\ndarwin=false\nnonstop=false\ncase \"$( uname )\" in                #(\n  CYGWIN* )         cygwin=true  ;; #(\n  Darwin* )         darwin=true  ;; #(\n  MSYS* | MINGW* )  msys=true    ;; #(\n  NONSTOP* )        nonstop=true ;;\nesac\n\nCLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar\n\n\n# Determine the Java command to use to start the JVM.\nif [ -n \"$JAVA_HOME\" ] ; then\n    if [ -x \"$JAVA_HOME/jre/sh/java\" ] ; then\n        # IBM's JDK on AIX uses strange locations for the executables\n        JAVACMD=$JAVA_HOME/jre/sh/java\n    else\n        JAVACMD=$JAVA_HOME/bin/java\n    fi\n    if [ ! -x \"$JAVACMD\" ] ; then\n        die \"ERROR: JAVA_HOME is set to an invalid directory: $JAVA_HOME\n\nPlease set the JAVA_HOME variable in your environment to match the\nlocation of your Java installation.\"\n    fi\nelse\n    JAVACMD=java\n    if ! command -v java >/dev/null 2>&1\n    then\n        die \"ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH.\n\nPlease set the JAVA_HOME variable in your environment to match the\nlocation of your Java installation.\"\n    fi\nfi\n\n# Increase the maximum file descriptors if we can.\nif ! \"$cygwin\" && ! \"$darwin\" && ! \"$nonstop\" ; then\n    case $MAX_FD in #(\n      max*)\n        # In POSIX sh, ulimit -H is undefined. That's why the result is checked to see if it worked.\n        # shellcheck disable=SC2039,SC3045\n        MAX_FD=$( ulimit -H -n ) ||\n            warn \"Could not query maximum file descriptor limit\"\n    esac\n    case $MAX_FD in  #(\n      '' | soft) :;; #(\n      *)\n        # In POSIX sh, ulimit -n is undefined. That's why the result is checked to see if it worked.\n        # shellcheck disable=SC2039,SC3045\n        ulimit -n \"$MAX_FD\" ||\n            warn \"Could not set maximum file descriptor limit to $MAX_FD\"\n    esac\nfi\n\n# Collect all arguments for the java command, stacking in reverse order:\n#   * args from the command line\n#   * the main class name\n#   * -classpath\n#   * -D...appname settings\n#   * --module-path (only if needed)\n#   * DEFAULT_JVM_OPTS, JAVA_OPTS, and GRADLE_OPTS environment variables.\n\n# For Cygwin or MSYS, switch paths to Windows format before running java\nif \"$cygwin\" || \"$msys\" ; then\n    APP_HOME=$( cygpath --path --mixed \"$APP_HOME\" )\n    CLASSPATH=$( cygpath --path --mixed \"$CLASSPATH\" )\n\n    JAVACMD=$( cygpath --unix \"$JAVACMD\" )\n\n    # Now convert the arguments - kludge to limit ourselves to /bin/sh\n    for arg do\n        if\n            case $arg in                                #(\n              -*)   false ;;                            # don't mess with options #(\n              /?*)  t=${arg#/} t=/${t%%/*}              # looks like a POSIX filepath\n                    [ -e \"$t\" ] ;;                      #(\n              *)    false ;;\n            esac\n        then\n            arg=$( cygpath --path --ignore --mixed \"$arg\" )\n        fi\n        # Roll the args list around exactly as many times as the number of\n        # args, so each arg winds up back in the position where it started, but\n        # possibly modified.\n        #\n        # NB: a `for` loop captures its iteration list before it begins, so\n        # changing the positional parameters here affects neither the number of\n        # iterations, nor the values presented in `arg`.\n        shift                   # remove old arg\n        set -- \"$@\" \"$arg\"      # push replacement arg\n    done\nfi\n\n\n# Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.\nDEFAULT_JVM_OPTS='\"-Xmx64m\" \"-Xms64m\"'\n\n# Collect all arguments for the java command:\n#   * DEFAULT_JVM_OPTS, JAVA_OPTS, JAVA_OPTS, and optsEnvironmentVar are not allowed to contain shell fragments,\n#     and any embedded shellness will be escaped.\n#   * For example: A user cannot expect ${Hostname} to be expanded, as it is an environment variable and will be\n#     treated as '${Hostname}' itself on the command line.\n\nset -- \\\n        \"-Dorg.gradle.appname=$APP_BASE_NAME\" \\\n        -classpath \"$CLASSPATH\" \\\n        org.gradle.wrapper.GradleWrapperMain \\\n        \"$@\"\n\n# Stop when \"xargs\" is not available.\nif ! command -v xargs >/dev/null 2>&1\nthen\n    die \"xargs is not available\"\nfi\n\n# Use \"xargs\" to parse quoted args.\n#\n# With -n1 it outputs one arg per line, with the quotes and backslashes removed.\n#\n# In Bash we could simply go:\n#\n#   readarray ARGS < <( xargs -n1 <<<\"$var\" ) &&\n#   set -- \"${ARGS[@]}\" \"$@\"\n#\n# but POSIX shell has neither arrays nor command substitution, so instead we\n# post-process each arg (as a line of input to sed) to backslash-escape any\n# character that might be a shell metacharacter, then use eval to reverse\n# that process (while maintaining the separation between arguments), and wrap\n# the whole thing up as a single \"set\" statement.\n#\n# This will of course break if any of these variables contains a newline or\n# an unmatched quote.\n#\n\neval \"set -- $(\n        printf '%s\\n' \"$DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS\" |\n        xargs -n1 |\n        sed ' s~[^-[:alnum:]+,./:=@_]~\\\\&~g; ' |\n        tr '\\n' ' '\n    )\" '\"$@\"'\n\nexec \"$JAVACMD\" \"$@\"\n", "android/gradlew.bat": "@rem\n@rem Copyright 2015 the original author or authors.\n@rem\n@rem Licensed under the Apache License, Version 2.0 (the \"License\");\n@rem you may not use this file except in compliance with the License.\n@rem You may obtain a copy of the License at\n@rem\n@rem      https://www.apache.org/licenses/LICENSE-2.0\n@rem\n@rem Unless required by applicable law or agreed to in writing, software\n@rem distributed under the License is distributed on an \"AS IS\" BASIS,\n@rem WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n@rem See the License for the specific language governing permissions and\n@rem limitations under the License.\n@rem\n\n@if \"%DEBUG%\"==\"\" @echo off\n@rem ##########################################################################\n@rem\n@rem  Gradle startup script for Windows\n@rem\n@rem ##########################################################################\n\n@rem Set local scope for the variables with windows NT shell\nif \"%OS%\"==\"Windows_NT\" setlocal\n\nset DIRNAME=%~dp0\nif \"%DIRNAME%\"==\"\" set DIRNAME=.\n@rem This is normally unused\nset APP_BASE_NAME=%~n0\nset APP_HOME=%DIRNAME%\n\n@rem Resolve any \".\" and \"..\" in APP_HOME to make it shorter.\nfor %%i in (\"%APP_HOME%\") do set APP_HOME=%%~fi\n\n@rem Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.\nset DEFAULT_JVM_OPTS=\"-Xmx64m\" \"-Xms64m\"\n\n@rem Find java.exe\nif defined JAVA_HOME goto findJavaFromJavaHome\n\nset JAVA_EXE=java.exe\n%JAVA_EXE% -version >NUL 2>&1\nif %ERRORLEVEL% equ 0 goto execute\n\necho. 1>&2\necho ERROR: JAVA_HOME is not set and no 'java' command could be found in your PATH. 1>&2\necho. 1>&2\necho Please set the JAVA_HOME variable in your environment to match the 1>&2\necho location of your Java installation. 1>&2\n\ngoto fail\n\n:findJavaFromJavaHome\nset JAVA_HOME=%JAVA_HOME:\"=%\nset JAVA_EXE=%JAVA_HOME%/bin/java.exe\n\nif exist \"%JAVA_EXE%\" goto execute\n\necho. 1>&2\necho ERROR: JAVA_HOME is set to an invalid directory: %JAVA_HOME% 1>&2\necho. 1>&2\necho Please set the JAVA_HOME variable in your environment to match the 1>&2\necho location of your Java installation. 1>&2\n\ngoto fail\n\n:execute\n@rem Setup the command line\n\nset CLASSPATH=%APP_HOME%\\gradle\\wrapper\\gradle-wrapper.jar\n\n\n@rem Execute Gradle\n\"%JAVA_EXE%\" %DEFAULT_JVM_OPTS% %JAVA_OPTS% %GRADLE_OPTS% \"-Dorg.gradle.appname=%APP_BASE_NAME%\" -classpath \"%CLASSPATH%\" org.gradle.wrapper.GradleWrapperMain %*\n\n:end\n@rem End local scope for the variables with windows NT shell\nif %ERRORLEVEL% equ 0 goto mainEnd\n\n:fail\nrem Set variable GRADLE_EXIT_CONSOLE if you need the _script_ return code instead of\nrem the _cmd.exe /c_ return code!\nset EXIT_CODE=%ERRORLEVEL%\nif %EXIT_CODE% equ 0 set EXIT_CODE=1\nif not \"\"==\"%GRADLE_EXIT_CONSOLE%\" exit %EXIT_CODE%\nexit /b %EXIT_CODE%\n\n:mainEnd\nif \"%OS%\"==\"Windows_NT\" endlocal\n\n:omega\n", "android/settings.gradle.kts": "pluginManagement {\n    repositories {\n        google()\n        mavenCentral()\n        gradlePluginPortal()\n    }\n}\ndependencyResolutionManagement {\n    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)\n    repositories {\n        google()\n        mavenCentral()\n    }\n}\nrootProject.name = \"Tele\"\ninclude(\":app\")\n", "firebase.json": "{\n  \"firestore\": {\n    \"rules\": \"firebase/firestore.rules\"\n  }\n}\n", "firebase/firestore.rules": "rules_version = '2';\n\n// Tele security rules.\n// - Parents (Firebase Email/Password sign-in) can READ their family's devices, calls, SMS, SOS events and live location.\n// - A child phone (Firebase anonymous sign-in) can WRITE only to its own device record.\n// - Child phones cannot read other families. Parents cannot edit call/SMS/SOS records.\n\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    function signedIn() {\n      return request.auth != null;\n    }\n\n    function isParentOf(fid) {\n      return signedIn()\n        && request.auth.uid in get(/databases/$(database)/documents/families/$(fid)).data.parentUids;\n    }\n\n    function isOwnerOfDevice(fid, did) {\n      return signedIn()\n        && get(/databases/$(database)/documents/families/$(fid)/devices/$(did)).data.ownerUid == request.auth.uid;\n    }\n\n    // Each parent account maps to exactly one family.\n    match /parents/{uid} {\n      allow read, write: if signedIn() && request.auth.uid == uid;\n    }\n\n    match /families/{fid} {\n      allow create: if signedIn()\n        && request.resource.data.parentUids == [request.auth.uid]\n        && request.resource.data.name is string\n        && request.resource.data.name.size() <= 80;\n      allow read: if isParentOf(fid);\n      allow update: if isParentOf(fid)\n        && request.resource.data.parentUids == resource.data.parentUids\n        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']);\n      allow delete: if false;\n\n      match /devices/{did} {\n        allow read: if isParentOf(fid) || isOwnerOfDevice(fid, did);\n\n        // A child links itself with a valid, unexpired pairing code. The device is owned by its anonymous uid.\n        allow create: if signedIn()\n          && request.resource.data.ownerUid == request.auth.uid\n          && exists(/databases/$(database)/documents/pairings/$(request.resource.data.pairingCode))\n          && get(/databases/$(database)/documents/pairings/$(request.resource.data.pairingCode)).data.familyId == fid\n          && get(/databases/$(database)/documents/pairings/$(request.resource.data.pairingCode)).data.expiresAt > request.time;\n\n        // Parent edits labels and the SOS contact. Child edits only its heartbeat status.\n        allow update: if (isParentOf(fid)\n            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['label', 'sosContactPhone', 'alertThreshold', 'locationSharing']))\n          || (isOwnerOfDevice(fid, did)\n            && request.resource.data.diff(resource.data).affectedKeys()\n                 .hasOnly(['lastSeen', 'defaultSms', 'appVersion', 'permissions']));\n\n        allow delete: if isParentOf(fid);\n\n        match /calls/{callId} {\n          allow read: if isParentOf(fid) || isOwnerOfDevice(fid, did);\n          allow create, update: if isOwnerOfDevice(fid, did)\n            && request.resource.data.keys().hasAll(['id', 'number', 'ts', 'type']);\n        }\n\n        // SMS: the body must be null unless the child's phone reports bodyVisible == true\n        match /sms/{smsId} {\n          allow read: if isParentOf(fid) || isOwnerOfDevice(fid, did);\n          allow create, update: if isOwnerOfDevice(fid, did)\n            && request.resource.data.keys().hasAll(['id', 'address', 'ts', 'folder', 'body', 'bodyVisible'])\n            && (request.resource.data.body == null || request.resource.data.bodyVisible == true);\n        }\n\n        // Live location: \"current\" is the latest point (drives the live map).\n        // Each point must be a valid lat/lng. Only the child's phone writes; parents read.\n        match /location/{docId} {\n          allow read: if isParentOf(fid) || isOwnerOfDevice(fid, did);\n          allow create, update: if isOwnerOfDevice(fid, did)\n            && request.resource.data.keys().hasAll(['lat', 'lng', 'ts'])\n            && request.resource.data.lat >= -90 && request.resource.data.lat <= 90\n            && request.resource.data.lng >= -180 && request.resource.data.lng <= 180;\n          allow delete: if false;\n        }\n\n        // Location history for the trail. expiresAt is used by a Firestore TTL policy (see README).\n        match /locationHistory/{pointId} {\n          allow read: if isParentOf(fid) || isOwnerOfDevice(fid, did);\n          allow create: if isOwnerOfDevice(fid, did)\n            && request.resource.data.keys().hasAll(['lat', 'lng', 'ts', 'expiresAt'])\n            && request.resource.data.lat >= -90 && request.resource.data.lat <= 90\n            && request.resource.data.lng >= -180 && request.resource.data.lng <= 180;\n          allow update: if false;\n          allow delete: if isParentOf(fid);\n        }\n\n        match /sos/{sosId} {\n          allow read: if isParentOf(fid) || isOwnerOfDevice(fid, did);\n          allow create: if isOwnerOfDevice(fid, did);\n          allow update: if isParentOf(fid)\n            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['acknowledgedBy', 'acknowledgedAt']);\n          allow delete: if false;\n        }\n      }\n    }\n\n    // Short-lived link codes. Parents create them; a child reads one by its exact code, then consumes it.\n    match /pairings/{code} {\n      allow create: if signedIn()\n        && isParentOf(request.resource.data.familyId)\n        && request.resource.data.expiresAt is timestamp;\n      allow get: if signedIn();\n      allow list: if false;\n      allow delete: if signedIn();\n      allow update: if false;\n    }\n  }\n}\n", "scripts/build-single-file.py": "#!/usr/bin/env python3\n\"\"\"Build the single-file Vercel deliverable.\n\nTakes the parent dashboard (web/index.html) and adds:\n  - a \"Project source\" section, and\n  - an embedded, read-only copy of every git-tracked text file in the project\n    (except web/index.html itself, which is the page).\n\nUsage (from the repo root):\n    python3 scripts/build-single-file.py [output.html]\n\nDefault output: ../tele-vercel/index.html (relative to the repo root).\nOnly files that git would commit are embedded (git ls-files --cached --others\n--exclude-standard), so build outputs, local.properties, and google-services.json\nare never included.\n\"\"\"\nimport json\nimport pathlib\nimport subprocess\nimport sys\n\nROOT = pathlib.Path(__file__).resolve().parent.parent\nSRC = ROOT / \"web\" / \"index.html\"\nDEFAULT_OUT = ROOT.parent / \"tele-vercel\" / \"index.html\"\nOUT = pathlib.Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else DEFAULT_OUT\n\nEXCLUDE = {\"web/index.html\", \"index.html\"}\n\nEXTRA_CSS = \"\"\"\n  details.source { margin-top:24px; }\n  details.source > summary { cursor:pointer; font-weight:600; padding:12px 0; color:var(--teal); }\n  .srcwrap { display:grid; grid-template-columns: 260px 1fr; gap:12px; margin-top:12px; }\n  .srclist { display:flex; flex-direction:column; gap:4px; max-height:560px; overflow:auto; }\n  .srclist button { background:#e8eeee; color:var(--ink); text-align:left; font-size:12px; font-family:ui-monospace, Menlo, monospace; word-break:break-all; }\n  .srclist button.active { background:var(--teal); color:#fff; }\n  pre.srccode { background:#0f1718; color:#e6f2f1; padding:14px; border-radius:8px; overflow:auto; max-height:560px; font-size:12px; line-height:1.45; margin:0; white-space:pre; }\n  @media (max-width:760px) { .srcwrap { grid-template-columns:1fr; } }\n\"\"\"\n\nSOURCE_SECTION = \"\"\"\n<section id=\"projectSource\" style=\"max-width:980px;margin:0 auto;padding:0 20px 40px;\">\n  <details class=\"source\">\n    <summary>Project source: Android child app, Firestore rules, Firebase config, README (for developers)<\/summary>\n    <div class=\"card\">\n      <p class=\"muted\">Every text file in the Tele project is embedded in this page: the Android child app (Kotlin), the Firestore security rules, Firebase config, and the README. Secrets such as google-services.json and local.properties are not included.<\/p>\n      <div class=\"row\" style=\"margin-bottom:8px\">\n        <button id=\"btnDownloadSource\" class=\"secondary\">Download all source as one text file<\/button>\n      <\/div>\n      <div class=\"srcwrap\">\n        <div class=\"srclist\" id=\"srcList\"><\/div>\n        <pre class=\"srccode\" id=\"srcCode\"><\/pre>\n      <\/div>\n    <\/div>\n  <\/details>\n<\/section>\n\"\"\"\n\nVIEWER_JS_TEMPLATE = \"\"\"\n/* ---------- embedded project source (read-only copy of the project) ---------- */\nconst PROJECT_FILES = __PROJECT_JSON__;\nfunction showSource(path) {\n  document.querySelectorAll(\".srclist button\").forEach(b => b.classList.toggle(\"active\", b.dataset.path === path));\n  $(\"#srcCode\").textContent = PROJECT_FILES[path] ?? \"\";\n}\nfunction renderSourceList() {\n  const paths = Object.keys(PROJECT_FILES).sort();\n  $(\"#srcList\").innerHTML = paths.map(p => `<button type=\"button\" data-path=\"${esc(p)}\">${esc(p)}<\/button>`).join(\"\");\n  showSource(\"README.md\");\n}\n$(\"#srcList\").addEventListener(\"click\", e => {\n  if (e.target.dataset && e.target.dataset.path) showSource(e.target.dataset.path);\n});\n$(\"#btnDownloadSource\").addEventListener(\"click\", () => {\n  const text = Object.keys(PROJECT_FILES).sort()\n    .map(p => `===== FILE: ${p} =====\\\\n${PROJECT_FILES[p]}\\\\n`).join(\"\\\\n\");\n  const url = URL.createObjectURL(new Blob([text], { type: \"text/plain\" }));\n  const a = document.createElement(\"a\");\n  a.href = url; a.download = \"tele-project-source.txt\";\n  document.body.appendChild(a); a.click(); a.remove();\n  setTimeout(() => URL.revokeObjectURL(url), 1000);\n});\nrenderSourceList();\n\n\"\"\"\n\n\ndef tracked_text_files():\n    out = subprocess.run(\n        [\"git\", \"ls-files\", \"--cached\", \"--others\", \"--exclude-standard\"],\n        cwd=ROOT, check=True, capture_output=True, text=True,\n    ).stdout.splitlines()\n    files = {}\n    for rel in sorted(out):\n        if rel in EXCLUDE:\n            continue\n        p = ROOT / rel\n        if not p.is_file():\n            continue\n        try:\n            files[rel] = p.read_text(encoding=\"utf-8\")\n        except UnicodeDecodeError:\n            continue  # skip binaries such as gradle-wrapper.jar\n    return files\n\n\ndef build():\n    html = SRC.read_text(encoding=\"utf-8\")\n    files = tracked_text_files()\n\n    # JSON is safe inside <script> only if \"<\/\" cannot close the tag.\n    project_json = json.dumps(files, ensure_ascii=False).replace(\"<\/\", \"<\\\\/\")\n    viewer_js = VIEWER_JS_TEMPLATE.replace(\"__PROJECT_JSON__\", project_json)\n\n    def insert_before(text, marker, addition):\n        if text.count(marker) != 1:\n            raise SystemExit(f\"marker not found exactly once: {marker!r}\")\n        return text.replace(marker, addition + marker)\n\n    html = insert_before(html, \"<\/style>\", EXTRA_CSS)                    # styles\n    if html.count(\"<\/main>\") != 1:\n        raise SystemExit(\"expected exactly one <\/main>\")\n    html = html.replace(\"<\/main>\", \"<\/main>\\n\" + SOURCE_SECTION)  # source section after <\/main>\n    html = insert_before(html, \"/* ---------- startup ---------- */\", viewer_js)  # viewer JS before startup\n\n    OUT.parent.mkdir(parents=True, exist_ok=True)\n    OUT.write_text(html, encoding=\"utf-8\")\n    print(f\"wrote {OUT} ({OUT.stat().st_size} bytes, {len(files)} embedded files)\")\n\n\nif __name__ == \"__main__\":\n    build()\n"};
+function showSource(path) {
+  document.querySelectorAll(".srclist button").forEach(b => b.classList.toggle("active", b.dataset.path === path));
+  $("#srcCode").textContent = PROJECT_FILES[path] ?? "";
+}
+function renderSourceList() {
+  const paths = Object.keys(PROJECT_FILES).sort();
+  $("#srcList").innerHTML = paths.map(p => `<button type="button" data-path="${esc(p)}">${esc(p)}</button>`).join("");
+  showSource("README.md");
+}
+$("#srcList").addEventListener("click", e => {
+  if (e.target.dataset && e.target.dataset.path) showSource(e.target.dataset.path);
+});
+$("#btnDownloadSource").addEventListener("click", () => {
+  const text = Object.keys(PROJECT_FILES).sort()
+    .map(p => `===== FILE: ${p} =====\n${PROJECT_FILES[p]}\n`).join("\n");
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = "tele-project-source.txt";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+renderSourceList();
+
+/* ---------- startup ---------- */
+(async function main() {
+  if (DEMO) {
+    makeDemo();
+    $("#demoBanner").classList.remove("hidden");
+    $("#formAuth").classList.add("hidden");
+    $("#demoAuth").classList.remove("hidden");
+    showView("auth");
+    return;
+  }
+  try {
+    await initFirebase();
+  } catch (e) {
+    $("#authError").textContent = "Could not start Firebase: " + e.message;
+    showView("auth");
+    return;
+  }
+  state.auth.onAuthStateChanged(onAuthChanged);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,117 @@
+rules_version = '2';
+
+// Tele security rules.
+// - Parents (Firebase Email/Password sign-in) can READ their family's devices, calls, SMS, SOS events and live location.
+// - A child phone (Firebase anonymous sign-in) can WRITE only to its own device record.
+// - Child phones cannot read other families. Parents cannot edit call/SMS/SOS records.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isParentOf(fid) {
+      return signedIn()
+        && request.auth.uid in get(/databases/$(database)/documents/families/$(fid)).data.parentUids;
+    }
+
+    function isOwnerOfDevice(fid, did) {
+      return signedIn()
+        && get(/databases/$(database)/documents/families/$(fid)/devices/$(did)).data.ownerUid == request.auth.uid;
+    }
+
+    // Each parent account maps to exactly one family.
+    match /parents/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /families/{fid} {
+      allow create: if signedIn()
+        && request.resource.data.parentUids == [request.auth.uid]
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 80;
+      allow read: if isParentOf(fid);
+      allow update: if isParentOf(fid)
+        && request.resource.data.parentUids == resource.data.parentUids
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']);
+      allow delete: if false;
+
+      match /devices/{did} {
+        allow read: if isParentOf(fid) || isOwnerOfDevice(fid, did);
+
+        // A child links itself with a valid, unexpired pairing code. The device is owned by its anonymous uid.
+        allow create: if signedIn()
+          && request.resource.data.ownerUid == request.auth.uid
+          && exists(/databases/$(database)/documents/pairings/$(request.resource.data.pairingCode))
+          && get(/databases/$(database)/documents/pairings/$(request.resource.data.pairingCode)).data.familyId == fid
+          && get(/databases/$(database)/documents/pairings/$(request.resource.data.pairingCode)).data.expiresAt > request.time;
+
+        // Parent edits labels and the SOS contact. Child edits only its heartbeat status.
+        allow update: if (isParentOf(fid)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['label', 'sosContactPhone', 'alertThreshold', 'locationSharing']))
+          || (isOwnerOfDevice(fid, did)
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['lastSeen', 'defaultSms', 'appVersion', 'permissions']));
+
+        allow delete: if isParentOf(fid);
+
+        match /calls/{callId} {
+          allow read: if isParentOf(fid) || isOwnerOfDevice(fid, did);
+          allow create, update: if isOwnerOfDevice(fid, did)
+            && request.resource.data.keys().hasAll(['id', 'number', 'ts', 'type']);
+        }
+
+        // SMS: the body must be null unless the child's phone reports bodyVisible == true
+        match /sms/{smsId} {
+          allow read: if isParentOf(fid) || isOwnerOfDevice(fid, did);
+          allow create, update: if isOwnerOfDevice(fid, did)
+            && request.resource.data.keys().hasAll(['id', 'address', 'ts', 'folder', 'body', 'bodyVisible'])
+            && (request.resource.data.body == null || request.resource.data.bodyVisible == true);
+        }
+
+        // Live location: "current" is the latest point (drives the live map).
+        // Each point must be a valid lat/lng. Only the child's phone writes; parents read.
+        match /location/{docId} {
+          allow read: if isParentOf(fid) || isOwnerOfDevice(fid, did);
+          allow create, update: if isOwnerOfDevice(fid, did)
+            && request.resource.data.keys().hasAll(['lat', 'lng', 'ts'])
+            && request.resource.data.lat >= -90 && request.resource.data.lat <= 90
+            && request.resource.data.lng >= -180 && request.resource.data.lng <= 180;
+          allow delete: if false;
+        }
+
+        // Location history for the trail. expiresAt is used by a Firestore TTL policy (see README).
+        match /locationHistory/{pointId} {
+          allow read: if isParentOf(fid) || isOwnerOfDevice(fid, did);
+          allow create: if isOwnerOfDevice(fid, did)
+            && request.resource.data.keys().hasAll(['lat', 'lng', 'ts', 'expiresAt'])
+            && request.resource.data.lat >= -90 && request.resource.data.lat <= 90
+            && request.resource.data.lng >= -180 && request.resource.data.lng <= 180;
+          allow update: if false;
+          allow delete: if isParentOf(fid);
+        }
+
+        match /sos/{sosId} {
+          allow read: if isParentOf(fid) || isOwnerOfDevice(fid, did);
+          allow create: if isOwnerOfDevice(fid, did);
+          allow update: if isParentOf(fid)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['acknowledgedBy', 'acknowledgedAt']);
+          allow delete: if false;
+        }
+      }
+    }
+
+    // Short-lived link codes. Parents create them; a child reads one by its exact code, then consumes it.
+    match /pairings/{code} {
+      allow create: if signedIn()
+        && isParentOf(request.resource.data.familyId)
+        && request.resource.data.expiresAt is timestamp;
+      allow get: if signedIn();
+      allow list: if false;
+      allow delete: if signedIn();
+      allow update: if false;
+    }
+  }
+}

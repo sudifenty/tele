@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tele · Parent dashboard</title>
+<style>
+  :root { --teal:#0E7C7B; --red:#C62828; --ink:#1B1B1F; --muted:#5f6368; --bg:#f4f7f7; --card:#fff; --amber:#8a5a00; --amberbg:#fff4d6; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--teal); color:#fff; padding:12px 20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  header .brand { font-weight:700; font-size:18px; }
+  header .who { opacity:.85; font-size:14px; }
+  header .spacer { flex:1; }
+  main { max-width:980px; margin:0 auto; padding:20px; }
+  .card { background:var(--card); border-radius:12px; padding:18px; box-shadow:0 1px 3px rgba(0,0,0,.08); margin-bottom:16px; }
+  .hidden { display:none !important; }
+  .banner { padding:12px 20px; background:#fff4d6; color:#5c3d00; border-bottom:1px solid #f0d78c; font-size:14px; }
+  input, select, button { font:inherit; }
+  input[type=text], input[type=email], input[type=password], input[type=tel], input[type=number], select {
+    width:100%; padding:10px 12px; border:1px solid #c9d2d2; border-radius:8px; background:#fff; }
+  label { display:block; font-size:14px; color:var(--muted); }
+  label input { margin-top:4px; }
+  button { padding:10px 16px; border:0; border-radius:8px; background:var(--teal); color:#fff; cursor:pointer; }
+  button.secondary { background:#e8eeee; color:var(--ink); }
+  button.danger { background:var(--red); }
+  button:disabled { opacity:.5; cursor:default; }
+  .stack { display:flex; flex-direction:column; gap:10px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0; }
+  .tabs button { background:#e8eeee; color:var(--ink); }
+  .tabs button.active { background:var(--teal); color:#fff; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:8px 6px; border-bottom:1px solid #e6ecec; vertical-align:top; }
+  th { color:var(--muted); font-weight:600; }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; background:#e8eeee; }
+  .pill.missed { background:#fde2e2; color:#8e1b1b; }
+  .pill.incoming { background:#e0f2f1; color:#004d40; }
+  .pill.outgoing { background:#e3edff; color:#1a3d8f; }
+  .alert { border-left:5px solid var(--amber); background:var(--amberbg); padding:12px 14px; border-radius:8px; margin-bottom:10px; }
+  .alert.sos { border-left-color:var(--red); background:#fde8e8; }
+  .alert.info { border-left-color:var(--teal); background:#e0f2f1; }
+  .muted { color:var(--muted); font-size:13px; }
+  .ok { color:#0a7a3a; font-weight:600; }
+  .no { color:var(--red); font-weight:600; }
+  .msg-hidden { color:var(--muted); font-style:italic; }
+  .msg-body { white-space:pre-wrap; }
+  .empty { color:var(--muted); padding:12px 0; }
+  .code { font-size:40px; letter-spacing:8px; font-weight:700; font-family:ui-monospace, Menlo, monospace; margin:8px 0; }
+  .tablewrap { overflow-x:auto; }
+  #map { height:380px; border-radius:10px; background:#e8eeee; margin-top:10px; }
+  #locFallback { margin-top:10px; }
+  @media (max-width:640px) { .hide-sm { display:none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="brand">🛡 Tele</span>
+  <span class="who" id="whoami"></span>
+  <span class="spacer"></span>
+  <button id="btnSignOut" class="secondary hidden">Sign out</button>
+</header>
+
+<div id="demoBanner" class="banner hidden">
+  Demo mode: this shows sample data. To see your child's real call log and texts, connect Firebase (see README).
+</div>
+
+<main>
+  <!-- SIGN IN -->
+  <section id="viewAuth" class="card hidden" style="max-width:420px;margin:40px auto;">
+    <h2 style="margin-top:0">Parent sign in</h2>
+    <p class="muted">Tele shows the call log and texts from your child's phone only to you. Your child's phone shows a permanent supervision notice at all times.</p>
+    <form id="formAuth" class="stack">
+      <input type="email" id="email" placeholder="Email" required autocomplete="email">
+      <input type="password" id="password" placeholder="Password (6+ characters)" required minlength="6" autocomplete="current-password">
+      <button type="submit">Sign in</button>
+      <button type="button" id="btnSignUp" class="secondary">Create parent account</button>
+    </form>
+    <p id="authError" class="no"></p>
+    <div id="demoAuth" class="hidden stack">
+      <button type="button" id="btnDemo">Open demo dashboard</button>
+    </div>
+  </section>
+
+  <!-- CREATE FAMILY -->
+  <section id="viewSetup" class="card hidden" style="max-width:520px;margin:40px auto;">
+    <h2 style="margin-top:0">Create your family</h2>
+    <p class="muted">This creates a private family space. Next, you link your child's phone with a 6-digit code.</p>
+    <form id="formFamily" class="stack">
+      <input type="text" id="familyName" placeholder="Family name, e.g. Mugisha family" maxlength="80" required>
+      <button type="submit">Create family</button>
+    </form>
+  </section>
+
+  <!-- DASHBOARD -->
+  <section id="viewApp" class="hidden">
+    <div class="card">
+      <div class="row">
+        <label style="min-width:110px">Child's phone</label>
+        <select id="deviceSelect" style="max-width:320px"></select>
+        <span style="flex:1"></span>
+        <button id="btnLinkNew" class="secondary">Link a new phone</button>
+      </div>
+      <div id="deviceStatus" class="muted" style="margin-top:12px"></div>
+    </div>
+
+    <div class="tabs" id="tabs">
+      <button data-tab="alerts" class="active">Alerts</button>
+      <button data-tab="location">Live location</button>
+      <button data-tab="calls">Call log</button>
+      <button data-tab="sms">Texts</button>
+      <button data-tab="sos">SOS</button>
+      <button data-tab="settings">Settings &amp; transparency</button>
+    </div>
+
+    <div id="locationCard" class="card hidden">
+      <div class="row" style="justify-content:space-between">
+        <h3 style="margin:0">Live location</h3>
+        <div class="row">
+          <button id="btnCenter" class="secondary">Center on child</button>
+          <button id="btnToggleSharing" class="secondary">Pause location sharing</button>
+        </div>
+      </div>
+      <p id="locStatus" class="muted" style="margin:10px 0"></p>
+      <div id="map"></div>
+      <p id="locFallback" class="muted hidden"></p>
+      <h4 style="margin-bottom:6px">Recent points</h4>
+      <div class="tablewrap" id="locHistory"></div>
+      <p class="muted">Location is shared while supervision is on. The child's phone shows a separate notice while it is shared. You can pause sharing here; the child's phone then shows that sharing is paused.</p>
+    </div>
+    <div id="pane"></div>
+  </section>
+</main>
+
+<script>
+/* ============================================================
+   CONFIG — replace with your Firebase web app config (see README).
+   While these are placeholders, the dashboard runs in demo mode.
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "REPLACE_ME",
+  authDomain: "REPLACE_ME.firebaseapp.com",
+  projectId: "REPLACE_ME",
+  storageBucket: "REPLACE_ME.appspot.com",
+  messagingSenderId: "REPLACE_ME",
+  appId: "REPLACE_ME"
+};
+const DEMO = FIREBASE_CONFIG.apiKey === "REPLACE_ME";
+const ALERT_THRESHOLD = 3;       // "Unknown number X called 3 times today"
+const TZ = "Africa/Nairobi";     // day boundaries for "today"
+const CALL_LIMIT = 300;
+const SMS_LIMIT = 300;
+const SOS_LIMIT = 50;
+const LOC_LIMIT = 200;
+
+/* ---------- helpers ---------- */
+const $ = (sel) => document.querySelector(sel);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const DAY = 86400000, NAIROBI_OFFSET = 3 * 3600000;
+const startOfTodayNairobi = (now = Date.now()) => Math.floor((now + NAIROBI_OFFSET) / DAY) * DAY - NAIROBI_OFFSET;
+const fmtTime = (ms) => ms ? new Date(ms).toLocaleString("en-GB", { timeZone: TZ, day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
+const fmtDur = (s) => s > 0 ? `${Math.floor(s / 60)}m ${s % 60}s` : "—";
+const toMs = (v) => {
+  if (v == null) return null;
+  if (typeof v === "number") return v;
+  if (typeof v.toMillis === "function") return v.toMillis();
+  return null;
+};
+const timeAgo = (ms) => {
+  if (!ms) return "never";
+  const m = Math.round((Date.now() - ms) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  return h < 48 ? `${h} h ago` : fmtTime(ms);
+};
+const PHONE_RE = /^\+?[0-9 ]{7,20}$/;
+
+/* ---------- state ---------- */
+const state = {
+  db: null, auth: null, user: null,
+  familyId: null, family: null,
+  devices: [], deviceId: null, devicesBaseline: 0,
+  calls: [], sms: [], sos: [],
+  location: null, locHistory: [],
+  tab: "alerts", callFilter: "all",
+  pairing: null,
+  unsubs: [], deviceUnsubs: []
+};
+const DEMO_STORE = {};
+
+/* ---------- derived alerts ---------- */
+/** Unknown numbers (no saved name) that called the child at least `threshold` times today (incoming or missed). */
+function unknownAlerts(calls, threshold = ALERT_THRESHOLD, now = Date.now()) {
+  const start = startOfTodayNairobi(now);
+  const counts = new Map();
+  for (const c of calls) {
+    if (c.ts < start) continue;
+    if (c.type !== "incoming" && c.type !== "missed") continue;
+    if (c.name || !c.number || c.number === "Private") continue;
+    counts.set(c.number, (counts.get(c.number) || 0) + 1);
+  }
+  return [...counts]
+    .filter(([, n]) => n >= threshold)
+    .map(([number, count]) => ({ number, count }));
+}
+
+function currentDevice() { return state.devices.find(d => d.id === state.deviceId) || null; }
+
+/* ---------- Firebase loading (only in live mode) ---------- */
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = src; s.onload = resolve;
+    s.onerror = () => reject(new Error("Could not load " + src));
+    document.head.appendChild(s);
+  });
+}
+async function initFirebase() {
+  const base = "https://www.gstatic.com/firebasejs/10.12.4/";
+  await loadScript(base + "firebase-app-compat.js");
+  await loadScript(base + "firebase-auth-compat.js");
+  await loadScript(base + "firebase-firestore-compat.js");
+  firebase.initializeApp(FIREBASE_CONFIG);
+  state.auth = firebase.auth();
+  state.db = firebase.firestore();
+}
+
+/* ---------- views ---------- */
+function showView(name) {
+  $("#viewAuth").classList.toggle("hidden", name !== "auth");
+  $("#viewSetup").classList.toggle("hidden", name !== "setup");
+  $("#viewApp").classList.toggle("hidden", name !== "app");
+  $("#btnSignOut").classList.toggle("hidden", !state.user);
+}
+
+/* ---------- live subscriptions ---------- */
+function clearSubs() {
+  state.unsubs.forEach(u => u()); state.unsubs = [];
+  clearDeviceSubs();
+}
+function clearDeviceSubs() {
+  state.deviceUnsubs.forEach(u => u()); state.deviceUnsubs = [];
+}
+
+function subscribeFamily(fid) {
+  clearSubs();
+  state.familyId = fid;
+  if (DEMO) { renderAll(); return; }
+  const fam = state.db.collection("families").doc(fid);
+  state.unsubs.push(fam.onSnapshot(s => { state.family = s.data() || null; renderAll(); }));
+  state.unsubs.push(fam.collection("devices").onSnapshot(s => {
+    const previous = state.devices.length;
+    state.devices = s.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (state.pairing && state.devices.length > state.devicesBaseline) state.pairing = null; // phone linked
+    if (!state.devices.find(d => d.id === state.deviceId)) {
+      state.deviceId = state.devices[0]?.id || null;
+      subscribeDevice();
+    } else if (previous === 0) {
+      subscribeDevice();
+    }
+    renderAll();
+  }));
+}
+
+function subscribeDevice() {
+  clearDeviceSubs();
+  state.calls = []; state.sms = []; state.sos = [];
+  state.location = null; state.locHistory = [];
+  if (!state.deviceId) { renderAll(); return; }
+  if (DEMO) {
+    const store = DEMO_STORE[state.deviceId];
+    state.calls = store.calls; state.sms = store.sms; state.sos = store.sos;
+    state.location = store.location; state.locHistory = store.locHistory;
+    renderAll();
+    return;
+  }
+  const dev = state.db.collection("families").doc(state.familyId).collection("devices").doc(state.deviceId);
+  state.deviceUnsubs.push(dev.collection("calls").orderBy("ts", "desc").limit(CALL_LIMIT).onSnapshot(s => {
+    state.calls = s.docs.map(d => ({ id: d.id, ...d.data() })); renderAll();
+  }));
+  state.deviceUnsubs.push(dev.collection("sms").orderBy("ts", "desc").limit(SMS_LIMIT).onSnapshot(s => {
+    state.sms = s.docs.map(d => ({ id: d.id, ...d.data() })); renderAll();
+  }));
+  state.deviceUnsubs.push(dev.collection("sos").orderBy("ts", "desc").limit(SOS_LIMIT).onSnapshot(s => {
+    state.sos = s.docs.map(d => ({ id: d.id, ...d.data() })); renderAll();
+  }));
+  state.deviceUnsubs.push(dev.collection("location").doc("current").onSnapshot(s => {
+    state.location = s.exists ? s.data() : null; renderAll();
+  }));
+  state.deviceUnsubs.push(dev.collection("locationHistory").orderBy("ts", "desc").limit(LOC_LIMIT).onSnapshot(s => {
+    state.locHistory = s.docs.map(d => d.data()); renderAll();
+  }));
+}
+
+/* ---------- API (live or demo) ---------- */
+const Api = {
+  async saveDevice(did, fields) {
+    if (DEMO) { Object.assign(currentDevice(), fields); return; }
+    await state.db.collection("families").doc(state.familyId).collection("devices").doc(did).update(fields);
+  },
+  async acknowledgeSos(sid) {
+    if (DEMO) { const s = state.sos.find(x => x.id === sid); if (s) s.acknowledgedBy = "demo"; return; }
+    await state.db.collection("families").doc(state.familyId).collection("devices").doc(state.deviceId)
+      .collection("sos").doc(sid).update({ acknowledgedBy: state.user.uid, acknowledgedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  },
+  async createPairing() {
+    const a = new Uint32Array(1); crypto.getRandomValues(a);
+    const code = String(100000 + (a[0] % 900000));
+    const expiresAt = Date.now() + 10 * 60000;
+    if (!DEMO) {
+      await state.db.collection("pairings").doc(code).set({
+        familyId: state.familyId,
+        createdBy: state.user.uid,
+        expiresAt: firebase.firestore.Timestamp.fromMillis(expiresAt)
+      });
+    }
+    return { code, expiresAt };
+  },
+  async createFamily(name) {
+    const fid = state.db.collection("families").doc().id;
+    await state.db.collection("families").doc(fid).set({
+      name, parentUids: [state.user.uid], createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await state.db.collection("parents").doc(state.user.uid).set({ familyId: fid });
+    return fid;
+  }
+};
+
+/* ---------- rendering ---------- */
+function renderAll() {
+  renderDeviceBar();
+  renderTabs();
+  renderPane();
+}
+
+function renderDeviceBar() {
+  const sel = $("#deviceSelect");
+  sel.innerHTML = state.devices.length
+    ? state.devices.map(d => `<option value="${esc(d.id)}" ${d.id === state.deviceId ? "selected" : ""}>${esc(d.label || "Child phone")}</option>`).join("")
+    : `<option value="">No phone linked yet</option>`;
+  const d = currentDevice();
+  if (!d) {
+    $("#deviceStatus").textContent = "Link your child's phone to start. Click \"Link a new phone\" and enter the code on the child's phone.";
+    return;
+  }
+  const p = d.permissions || {};
+  const perm = (ok, label) => `<span class="${ok ? "ok" : "no"}">${ok ? "✓" : "✗"} ${label}</span>`;
+  $("#deviceStatus").innerHTML = `
+    Last seen: <b>${esc(timeAgo(toMs(d.lastSeen)))}</b> &nbsp;·&nbsp;
+    Texts: ${d.defaultSms ? '<span class="ok">content visible (Tele is default SMS app)</span>' : '<span class="no">sender &amp; time only</span>'}
+    <div style="margin-top:6px" class="row">
+      ${perm(p.callLog, "Call log")} ${perm(p.sms, "Texts")} ${perm(p.sendSms, "Send SMS")}
+      ${perm(p.contacts, "Contacts")} ${perm(p.location, "Location")} ${perm(p.backgroundLocation, "Location all the time")}
+    </div>`;
+}
+
+function renderTabs() {
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === state.tab));
+}
+
+function renderPane() {
+  const d = currentDevice();
+  const showLoc = state.tab === "location" && !!d;
+  $("#locationCard").classList.toggle("hidden", !showLoc);
+  if (showLoc) {
+    $("#pane").innerHTML = pairingHtml();
+    renderLocation(d);
+    return;
+  }
+  let html = pairingHtml();
+  if (!d) {
+    html += `<div class="card"><p class="empty">No child phone linked yet.</p></div>`;
+  } else if (state.tab === "alerts") html += renderAlerts(d);
+  else if (state.tab === "calls") html += renderCalls();
+  else if (state.tab === "sms") html += renderSms(d);
+  else if (state.tab === "sos") html += renderSos(d);
+  else if (state.tab === "settings") html += renderSettings(d);
+  $("#pane").innerHTML = html;
+}
+
+function pairingHtml() {
+  if (!state.pairing) return "";
+  const minsLeft = Math.max(0, Math.round((state.pairing.expiresAt - Date.now()) / 60000));
+  return `<div class="card">
+    <h3 style="margin-top:0">Link a new phone</h3>
+    <p class="muted">On the child's phone: open Tele, tap <b>"5. Link to parent with code"</b>, and enter this code. Expires in about ${minsLeft} min.</p>
+    <div class="code">${esc(state.pairing.code)}</div>
+    <button id="btnNewCode" class="secondary">Make a new code</button>
+  </div>`;
+}
+
+function renderAlerts(d) {
+  const threshold = Number(d.alertThreshold ?? ALERT_THRESHOLD);
+  const openSos = state.sos.filter(s => !s.acknowledgedBy);
+  const unknown = unknownAlerts(state.calls, threshold);
+  let html = "";
+  openSos.slice(0, 5).forEach(s => {
+    const where = s.withLocation
+      ? `Location: <a target="_blank" rel="noopener noreferrer" href="https://maps.google.com/?q=${Number(s.lat)},${Number(s.lng)}">open map</a> (±${Math.round(Number(s.accuracyM) || 0)} m)`
+      : "No location was shared.";
+    html += `<div class="alert sos"><b>SOS from ${esc(d.label || "child phone")}</b> · ${esc(fmtTime(toMs(s.ts)))}<br>${where}
+      <div style="margin-top:8px"><button class="danger" data-ack="${esc(s.id)}">I've seen this</button></div></div>`;
+  });
+  unknown.forEach(u => {
+    html += `<div class="alert">Unknown number <b>${esc(u.number)}</b> called ${u.count} times today</div>`;
+  });
+  if (!d.defaultSms) {
+    html += `<div class="alert info">Text content is hidden. Tele is not the default SMS app on this phone, so you see only who texted and when.</div>`;
+  }
+  if (!html) html = `<p class="empty">No alerts right now.</p>`;
+
+  const todayStart = startOfTodayNairobi();
+  const todays = state.calls.filter(c => c.ts >= todayStart);
+  const missed = todays.filter(c => c.type === "missed").length;
+  return `<div class="card">
+    <h3 style="margin-top:0">Alerts</h3>
+    ${html}
+    <p class="muted" style="margin-top:14px">Today so far: ${todays.length} calls, ${missed} missed. Unknown-number alert: ${threshold}+ incoming or missed calls from a number with no saved name.</p>
+  </div>`;
+}
+
+function renderCalls() {
+  const filter = state.callFilter;
+  const todayStart = startOfTodayNairobi();
+  const list = state.calls.filter(c => {
+    if (filter === "all") return true;
+    if (filter === "unknown") return !c.name && c.number !== "Private";
+    return c.type === filter;
+  });
+  const rows = list.slice(0, 200).map(c => `
+    <tr>
+      <td>${esc(fmtTime(c.ts))}</td>
+      <td>${esc(c.name || c.number)}${c.name ? `<div class="muted">${esc(c.number)}</div>` : ""}</td>
+      <td><span class="pill ${esc(c.type)}">${esc(c.type)}</span></td>
+      <td class="hide-sm">${esc(fmtDur(c.durationSec))}</td>
+    </tr>`).join("");
+  return `<div class="card">
+    <div class="row" style="justify-content:space-between">
+      <h3 style="margin:0">Call log</h3>
+      <select id="callFilter" style="max-width:220px">
+        ${[["all","All calls"],["missed","Missed"],["incoming","Incoming"],["outgoing","Outgoing"],["unknown","Unknown names"]]
+          .map(([v, l]) => `<option value="${v}" ${v === filter ? "selected" : ""}>${l}</option>`).join("")}
+      </select>
+    </div>
+    <p class="muted">Shows number, saved name, time, length and type. Call audio is never recorded.</p>
+    <div class="tablewrap">
+      ${list.length ? `<table><thead><tr><th>Time</th><th>Number / name</th><th>Type</th><th class="hide-sm">Length</th></tr></thead><tbody>${rows}</tbody></table>`
+                    : `<p class="empty">No calls to show.</p>`}
+    </div>
+  </div>`;
+}
+
+function renderSms(d) {
+  const rows = state.sms.slice(0, 200).map(m => {
+    const visible = m.bodyVisible === true && m.body != null;
+    const content = visible
+      ? `<div class="msg-body">${esc(m.body)}</div>`
+      : `<span class="msg-hidden">Hidden: Tele is not the default SMS app on this phone</span>`;
+    return `<tr>
+      <td>${esc(fmtTime(m.ts))}</td>
+      <td>${esc(m.folder === "sent" ? "Sent" : "Received")}</td>
+      <td>${esc(m.name || m.address)}${m.name ? `<div class="muted">${esc(m.address)}</div>` : ""}</td>
+      <td>${content}</td>
+    </tr>`;
+  }).join("");
+  return `<div class="card">
+    <h3 style="margin-top:0">Texts (SMS)</h3>
+    <p class="muted">${d.defaultSms
+      ? "Text content is visible because Tele is the default SMS app on this phone."
+      : "Only sender and time are shown. Text content appears only when Tele is the default SMS app on the child's phone."}</p>
+    <div class="tablewrap">
+      ${state.sms.length ? `<table><thead><tr><th>Time</th><th>Folder</th><th>Contact</th><th>Content</th></tr></thead><tbody>${rows}</tbody></table>`
+                         : `<p class="empty">No texts to show yet.</p>`}
+    </div>
+  </div>`;
+}
+
+function renderSos(d) {
+  if (!state.sos.length) return `<div class="card"><h3 style="margin-top:0">SOS</h3><p class="empty">No SOS events. The child can press SOS on their phone at any time.</p></div>`;
+  const rows = state.sos.map(s => `<tr>
+      <td>${esc(fmtTime(toMs(s.ts)))}</td>
+      <td>${s.withLocation
+          ? `<a target="_blank" rel="noopener noreferrer" href="https://maps.google.com/?q=${Number(s.lat)},${Number(s.lng)}">Map</a>`
+          : "No location"}</td>
+      <td>${s.acknowledgedBy ? '<span class="ok">Seen</span>' : `<button class="danger" data-ack="${esc(s.id)}">Mark seen</button>`}</td>
+    </tr>`).join("");
+  return `<div class="card"><h3 style="margin-top:0">SOS events from ${esc(d.label || "child phone")}</h3>
+    <p class="muted">Sent only when the child presses SOS and confirms.</p>
+    <div class="tablewrap"><table><thead><tr><th>Time</th><th>Location</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+  </div>`;
+}
+
+function renderSettings(d) {
+  return `
+  <div class="card">
+    <h3 style="margin-top:0">Child phone settings</h3>
+    <div class="grid">
+      <label>Name shown in alerts<input type="text" id="setLabel" maxlength="60" value="${esc(d.label || "")}"></label>
+      <label>Emergency SMS number for SOS<input type="tel" id="setSos" placeholder="e.g. 0772 000 000" value="${esc(d.sosContactPhone || "")}"></label>
+      <label>Unknown-number alert after (calls today)<input type="number" id="setThreshold" min="2" max="10" value="${Number(d.alertThreshold ?? ALERT_THRESHOLD)}"></label>
+    </div>
+    <p class="row" style="margin-top:12px"><button id="btnSaveSettings">Save settings</button> <span id="settingsMsg" class="muted"></span></p>
+  </div>
+  <div class="card">
+    <h3 style="margin-top:0">What your child sees on their phone</h3>
+    <ul>
+      <li>A permanent notification: <i>"This device is supervised by Dad - Call log and SMS visible to parent"</i>. It cannot be swiped away while supervision is on.</li>
+      <li>Tele's icon on the home screen. Tele never hides its icon.</li>
+      <li>Every permission is asked in a normal Android dialog. Location is asked with an explanation first.</li>
+      <li>Live location is shared while supervision is on. A separate notice stays on the child's phone while it is shared. You can pause sharing from the Live location tab.</li>
+      <li>Text content is shared only if the child accepts Tele as the default SMS app in Android's own dialog.</li>
+      <li>Tele never records calls or listens to audio, and never forwards calls.</li>
+      <li>The child can open "My call &amp; text log" in Tele to see the same data you see.</li>
+    </ul>
+  </div>`;
+}
+
+/* ---------- live location ---------- */
+let leafletPromise = null, map = null, marker = null, trail = null, centeredFor = null;
+
+/** Leaflet (OpenStreetMap tiles) is loaded only when the Live location tab is opened. */
+function loadLeaflet() {
+  if (window.L) return Promise.resolve(window.L);
+  if (!leafletPromise) {
+    leafletPromise = new Promise((resolve, reject) => {
+      const css = document.createElement("link");
+      css.rel = "stylesheet";
+      css.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+      document.head.appendChild(css);
+      const js = document.createElement("script");
+      js.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+      js.onload = () => resolve(window.L);
+      js.onerror = () => { leafletPromise = null; reject(new Error("map library unavailable")); };
+      document.head.appendChild(js);
+    });
+  }
+  return leafletPromise;
+}
+
+function ensureMap(L) {
+  if (map) return;
+  map = L.map("map").setView([0.3476, 32.5825], 13);   // Kampala until the first point arrives
+  L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap contributors"
+  }).addTo(map);
+  trail = L.polyline([], { color: "#0E7C7B", weight: 4, opacity: 0.7 }).addTo(map);
+}
+
+function renderLocHistory() {
+  const rows = state.locHistory.slice(0, 50).map(p => `
+    <tr>
+      <td>${esc(fmtTime(toMs(p.ts)))}</td>
+      <td>${Number(p.lat).toFixed(5)}, ${Number(p.lng).toFixed(5)}</td>
+      <td>±${Math.round(Number(p.accuracyM) || 0)} m</td>
+      <td><a target="_blank" rel="noopener noreferrer" href="https://maps.google.com/?q=${Number(p.lat)},${Number(p.lng)}">map</a></td>
+    </tr>`).join("");
+  $("#locHistory").innerHTML = state.locHistory.length
+    ? `<table><thead><tr><th>Time</th><th>Coordinates</th><th>Accuracy</th><th></th></tr></thead><tbody>${rows}</tbody></table>`
+    : `<p class="empty">No location points yet.</p>`;
+}
+
+function renderLocation(d) {
+  const cur = state.location;
+  const sharing = d.locationSharing !== false;
+  const ts = cur ? toMs(cur.ts) : null;
+  const stale = ts && Date.now() - ts > 5 * 60000;
+
+  $("#btnToggleSharing").textContent = sharing ? "Pause location sharing" : "Resume location sharing";
+  let status;
+  if (!sharing) {
+    status = `<span class="no">Sharing is paused.</span> Last known position: ${cur ? esc(timeAgo(ts)) : "not available"}. The child's phone shows that sharing is paused.`;
+  } else if (!cur) {
+    status = "No location received yet. It starts once the child's phone has allowed location \"Allow all the time\" and is linked.";
+  } else {
+    status = `${stale ? '<span class="no">Last update is old</span>' : '<span class="ok">Live</span>'} · updated ${esc(timeAgo(ts))} · accuracy ±${Math.round(Number(cur.accuracyM) || 0)} m`;
+  }
+  $("#locStatus").innerHTML = status;
+  renderLocHistory();
+
+  const fallback = $("#locFallback");
+  loadLeaflet().then(L => {
+    fallback.classList.add("hidden");
+    ensureMap(L);
+    map.invalidateSize();
+    trail.setLatLngs(state.locHistory.slice().reverse().map(p => [Number(p.lat), Number(p.lng)]));
+    if (cur) {
+      if (!marker) marker = L.circleMarker([Number(cur.lat), Number(cur.lng)], {
+        radius: 9, color: "#fff", weight: 3, fillColor: "#C62828", fillOpacity: 1
+      }).addTo(map);
+      marker.setLatLng([Number(cur.lat), Number(cur.lng)]);
+      if (centeredFor !== d.id) { map.setView([Number(cur.lat), Number(cur.lng)], 16); centeredFor = d.id; }
+    }
+  }).catch(() => {
+    fallback.classList.remove("hidden");
+    fallback.innerHTML = cur
+      ? `Map could not load (check your connection). Last position: ${Number(cur.lat).toFixed(5)}, ${Number(cur.lng).toFixed(5)} · <a target="_blank" rel="noopener noreferrer" href="https://maps.google.com/?q=${Number(cur.lat)},${Number(cur.lng)}">open in Google Maps</a>`
+      : "Map could not load (check your connection).";
+  });
+}
+
+function centerOnChild() {
+  if (map && state.location) map.setView([Number(state.location.lat), Number(state.location.lng)], 16);
+}
+
+async function toggleSharing() {
+  const d = currentDevice();
+  if (!d) return;
+  const resume = d.locationSharing === false;
+  try {
+    await Api.saveDevice(d.id, { locationSharing: resume });
+    renderAll();
+  } catch (e) {
+    alert("Could not change location sharing: " + e.message);
+  }
+}
+
+/* ---------- actions ---------- */
+async function saveSettings() {
+  const d = currentDevice();
+  const msg = $("#settingsMsg");
+  const phone = $("#setSos").value.trim();
+  if (phone && !PHONE_RE.test(phone)) { msg.textContent = "Enter a valid phone number, or leave it empty."; return; }
+  const threshold = Math.min(10, Math.max(2, Number($("#setThreshold").value) || ALERT_THRESHOLD));
+  try {
+    await Api.saveDevice(d.id, {
+      label: $("#setLabel").value.trim().slice(0, 60) || "Child phone",
+      sosContactPhone: phone,
+      alertThreshold: threshold
+    });
+    msg.textContent = "Saved.";
+  } catch (e) {
+    msg.textContent = "Could not save: " + e.message;
+  }
+}
+
+async function ackSos(id) {
+  try { await Api.acknowledgeSos(id); renderAll(); }
+  catch (e) { alert("Could not mark as seen: " + e.message); }
+}
+
+async function startPairing() {
+  if (!state.familyId) return;
+  try {
+    state.pairing = await Api.createPairing();
+    state.devicesBaseline = state.devices.length;
+    renderAll();
+  } catch (e) {
+    alert("Could not create a code: " + e.message);
+  }
+}
+
+/* ---------- event wiring ---------- */
+document.querySelectorAll("#tabs button").forEach(b => b.addEventListener("click", () => {
+  state.tab = b.dataset.tab;
+  renderAll();
+}));
+$("#deviceSelect").addEventListener("change", e => {
+  state.deviceId = e.target.value || null;
+  subscribeDevice();
+});
+$("#btnLinkNew").addEventListener("click", startPairing);
+$("#pane").addEventListener("click", e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.ack) return ackSos(t.dataset.ack);
+  if (t.id === "btnSaveSettings") return saveSettings();
+  if (t.id === "btnNewCode") return startPairing();
+});
+$("#locationCard").addEventListener("click", e => {
+  if (e.target.id === "btnCenter") centerOnChild();
+  if (e.target.id === "btnToggleSharing") toggleSharing();
+});
+$("#pane").addEventListener("change", e => {
+  if (e.target.id === "callFilter") { state.callFilter = e.target.value; renderPane(); }
+});
+
+$("#formAuth").addEventListener("submit", async e => {
+  e.preventDefault();
+  await authAction("signin");
+});
+$("#btnSignUp").addEventListener("click", () => authAction("signup"));
+async function authAction(kind) {
+  $("#authError").textContent = "";
+  const email = $("#email").value.trim();
+  const password = $("#password").value;
+  try {
+    if (kind === "signup") await state.auth.createUserWithEmailAndPassword(email, password);
+    else await state.auth.signInWithEmailAndPassword(email, password);
+  } catch (err) {
+    $("#authError").textContent = err.message;
+  }
+}
+
+$("#formFamily").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("#familyName").value.trim();
+  if (!name) return;
+  try {
+    const fid = await Api.createFamily(name);
+    subscribeFamily(fid);
+    showView("app");
+  } catch (err) {
+    alert("Could not create family: " + err.message);
+  }
+});
+
+$("#btnSignOut").addEventListener("click", async () => {
+  if (DEMO) { location.reload(); return; }
+  await state.auth.signOut();
+});
+
+$("#btnDemo").addEventListener("click", () => {
+  state.user = { uid: "demo", email: "demo@example.com" };
+  $("#whoami").textContent = "Demo parent";
+  subscribeFamily("demo");
+  subscribeDevice();
+  showView("app");
+});
+
+async function onAuthChanged(user) {
+  state.user = user;
+  if (!user) {
+    $("#whoami").textContent = "";
+    clearSubs();
+    showView("auth");
+    return;
+  }
+  $("#whoami").textContent = user.email || "";
+  const parent = await state.db.collection("parents").doc(user.uid).get();
+  if (!parent.exists) { showView("setup"); return; }
+  subscribeFamily(parent.data().familyId);
+  showView("app");
+}
+
+/* ---------- demo data (used only while FIREBASE_CONFIG is placeholder) ---------- */
+function makeDemo() {
+  const now = Date.now(), m = 60000, h = 3600000;
+  DEMO_STORE["demo-1"] = {
+    calls: [
+      { id: "d1", number: "0772100200", name: "Mama", durationSec: 312, ts: now - 2 * h, type: "incoming" },
+      { id: "d2", number: "0758111222", name: "", durationSec: 0, ts: now - 3 * h, type: "missed" },
+      { id: "d3", number: "0778123456", name: "", durationSec: 0, ts: now - 5 * m, type: "missed" },
+      { id: "d4", number: "0778123456", name: "", durationSec: 0, ts: now - 15 * m, type: "incoming" },
+      { id: "d5", number: "0778123456", name: "", durationSec: 41, ts: now - 25 * m, type: "incoming" },
+      { id: "d6", number: "0701555666", name: "Auntie Grace", durationSec: 95, ts: now - 26 * h, type: "outgoing" },
+      { id: "d7", number: "0789000111", name: "", durationSec: 0, ts: now - 30 * h, type: "missed" },
+      { id: "d8", number: "Private", name: "", durationSec: 12, ts: now - 31 * h, type: "incoming" }
+    ],
+    sms: [
+      { id: "m1", address: "0772100200", name: "Mama", folder: "inbox", ts: now - 90 * m, body: null, bodyVisible: false },
+      { id: "m2", address: "0778123456", name: "", folder: "inbox", ts: now - 20 * m, body: null, bodyVisible: false },
+      { id: "m3", address: "0701555666", name: "Auntie Grace", folder: "sent", ts: now - 26 * h, body: null, bodyVisible: false }
+    ],
+    sos: [
+      { id: "s1", ts: now - 3 * h, withLocation: true, lat: 0.3476, lng: 32.5825, accuracyM: 12, acknowledgedBy: null }
+    ]
+  };
+  // Demo location: a short walk around central Kampala, one point every 2 minutes.
+  const walk = [[0.3476, 32.5825], [0.3481, 32.5833], [0.3490, 32.5841], [0.3496, 32.5852],
+                [0.3502, 32.5866], [0.3508, 32.5879], [0.3514, 32.5890], [0.3519, 32.5902]];
+  const locHistory = walk.map(([lat, lng], i) => ({
+    lat, lng, accuracyM: 8 + (i % 3) * 3, ts: now - (walk.length - 1 - i) * 2 * m
+  })).reverse();
+  DEMO_STORE["demo-1"].location = { ...locHistory[0] };
+  DEMO_STORE["demo-1"].locHistory = locHistory;
+  state.devices = [{
+    id: "demo-1", label: "Child phone (demo)", lastSeen: now - 4 * m, defaultSms: false, appVersion: "1.0.0",
+    alertThreshold: ALERT_THRESHOLD, sosContactPhone: "0700 000 000", locationSharing: true,
+    permissions: { callLog: true, sms: true, sendSms: true, contacts: true, location: true, backgroundLocation: true }
+  }];
+  state.deviceId = "demo-1";
+}
+
+/* ---------- startup ---------- */
+(async function main() {
+  if (DEMO) {
+    makeDemo();
+    $("#demoBanner").classList.remove("hidden");
+    $("#formAuth").classList.add("hidden");
+    $("#demoAuth").classList.remove("hidden");
+    showView("auth");
+    return;
+  }
+  try {
+    await initFirebase();
+  } catch (e) {
+    $("#authError").textContent = "Could not start Firebase: " + e.message;
+    showView("auth");
+    return;
+  }
+  state.auth.onAuthStateChanged(onAuthChanged);
+})();
+</script>
+</body>
+</html>

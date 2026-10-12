@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tele</string>
+    <!-- Exact supervision notice required by the spec. Shown permanently while supervision is on. -->
+    <string name="supervision_notice">This device is supervised by Dad - Call log and SMS visible to parent</string>
+    <string name="notification_channel_name">Supervision status</string>
+    <string name="pair_title">Link to parent</string>
+    <string name="log_title">My call &amp; text log</string>
+    <string name="compose_title">Tele messages</string>
+</resources>
