@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shield with a check mark: a visible, honest "supervised" icon -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,26 L76,34 L76,54 C76,69 66,79 54,84 C42,79 32,69 32,54 L32,34 Z" />
+    <path
+        android:strokeColor="@color/tele_teal"
+        android:strokeWidth="5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M44,54 L51,61 L65,46" />
+</vector>
