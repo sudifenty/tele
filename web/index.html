@@ -53,6 +53,13 @@
   #locFallback { margin-top:10px; }
   @media (max-width:640px) { .hide-sm { display:none; } }
 </style>
+<meta name="theme-color" content="#0E7C7B" />
+<meta name="description" content="Tele parent dashboard: calls, texts, live location and SOS for your child's phone." />
+<link rel="manifest" href="/manifest.webmanifest" />
+<link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+<link rel="apple-touch-icon" href="/icons/icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Tele" />
 </head>
 <body>
 
@@ -720,6 +727,14 @@ async function onAuthChanged(user) {
   }
   state.auth.onAuthStateChanged(onAuthChanged);
 })();
+</script>
+<script>
+/* Install support: register the service worker that caches the app shell (not Firebase data). */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => { /* ignored: install is optional */ });
+  });
+}
 </script>
 </body>
 </html>

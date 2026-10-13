@@ -22,8 +22,22 @@ android {
         }
     }
 
+    // Release signing. The key lives outside the repo; the build reads it from environment variables
+    // (see the release build script). Without them, the release APK is built unsigned.
+    signingConfigs {
+        create("release") {
+            System.getenv("TELE_KEYSTORE")?.let { ks ->
+                storeFile = file(ks)
+                storePassword = System.getenv("TELE_KS_PASS")
+                keyAlias = System.getenv("TELE_KEY_ALIAS")
+                keyPassword = System.getenv("TELE_KEY_PASS")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (System.getenv("TELE_KEYSTORE") != null) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true      // R8 code shrinking (release builds only)
             isShrinkResources = true    // drop unused resources (requires minify)
             proguardFiles(

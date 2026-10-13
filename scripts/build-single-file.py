@@ -126,6 +126,15 @@ def build():
     OUT.write_text(html, encoding="utf-8")
     print(f"wrote {OUT} ({OUT.stat().st_size} bytes, {len(files)} embedded files)")
 
+    # PWA companions must sit at the site root next to index.html (the browser requires it).
+    import shutil
+    shutil.copyfile(ROOT / "web" / "manifest.webmanifest", OUT.parent / "manifest.webmanifest")
+    shutil.copyfile(ROOT / "web" / "sw.js", OUT.parent / "sw.js")
+    (OUT.parent / "icons").mkdir(exist_ok=True)
+    for icon in (ROOT / "web" / "icons").glob("*.png"):
+        shutil.copyfile(icon, OUT.parent / "icons" / icon.name)
+    print(f"copied PWA files (manifest.webmanifest, sw.js, icons/) to {OUT.parent}")
+
 
 if __name__ == "__main__":
     build()

@@ -207,3 +207,24 @@ tele/
 └── scripts/
     └── build-single-file.py           Builds tele-vercel/index.html (one-file deliverable)
 ```
+
+## Installing the parent dashboard as an app (PWA)
+
+The parent dashboard is installable. Open it in Chrome or Edge (or Safari on iPhone and iPad, then choose **Add to Home Screen**), then choose **Install app**. It opens in its own window with the Tele icon.
+
+- `manifest.webmanifest` and `icons/` describe the app: name, colors, and icons.
+- `sw.js` caches only the app shell so the page opens offline. It never caches Firebase data, and it never intercepts Firebase or Google requests.
+- The child's Android app is not a PWA. Call logs, SMS, and background location need native Android APIs.
+- `scripts/build-single-file.py` copies these files next to `index.html` whenever it builds, because the browser requires them at the site root.
+
+## Building the release APK
+
+Release builds are minified (R8) and signed. The signing key is not in this repository.
+
+1. Create a key once (keep the file and its passwords somewhere safe; losing the key means parents cannot update the app in place):
+   `keytool -genkeypair -v -keystore tele-release.jks -storetype PKCS12 -alias tele -keyalg RSA -keysize 2048 -validity 10950`
+2. Set these environment variables before building: `TELE_KEYSTORE` (path to the .jks file), `TELE_KS_PASS`, `TELE_KEY_ALIAS` (`tele`), and `TELE_KEY_PASS`.
+3. From `android/`: `./gradlew assembleRelease`. The signed APK is `android/app/build/outputs/apk/release/app-release.apk`.
+
+Without the variables, `assembleRelease` still builds, but the APK is unsigned and cannot be installed.
+The build needs about 2 GB of RAM; on smaller machines, add swap or build on a larger machine.
