@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
  *  - Runs as a visible foreground service with its own notice ("Tele is sharing this phone's location with Dad").
  *  - Starts only if the child allowed location, and only after the child has linked to a parent.
  *  - The parent can pause sharing from the dashboard. The child's notice then says it is paused.
- *  - Updates are sent about once a minute. Android may delay them when the phone is in deep sleep.
+ *  - Updates are sent every 5 minutes. Android may delay them when the phone is in deep sleep.
  */
 class LocationService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -113,8 +113,8 @@ class LocationService : Service() {
 
     companion object {
         const val NOTIFICATION_ID = 1002
-        private const val UPDATE_INTERVAL_MS = 60_000L
-        private const val MIN_INTERVAL_MS = 30_000L
+        private const val UPDATE_INTERVAL_MS = 300_000L   // 5 minutes
+        private const val MIN_INTERVAL_MS = 300_000L    // never faster than 5 minutes
 
         fun canStart(ctx: Context): Boolean = Prefs.isLinked(ctx) && Permissions.hasLocationAlways(ctx)
 

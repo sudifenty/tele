@@ -63,10 +63,6 @@
   <button id="btnSignOut" class="secondary hidden">Sign out</button>
 </header>
 
-<div id="demoBanner" class="banner hidden">
-  Demo mode: this shows sample data. To see your child's real call log and texts, connect Firebase (see README).
-</div>
-
 <main>
   <!-- SIGN IN -->
   <section id="viewAuth" class="card hidden" style="max-width:420px;margin:40px auto;">
@@ -79,9 +75,6 @@
       <button type="button" id="btnSignUp" class="secondary">Create parent account</button>
     </form>
     <p id="authError" class="no"></p>
-    <div id="demoAuth" class="hidden stack">
-      <button type="button" id="btnDemo">Open demo dashboard</button>
-    </div>
   </section>
 
   <!-- CREATE FAMILY -->
@@ -136,18 +129,19 @@
 
 <script>
 /* ============================================================
-   CONFIG — replace with your Firebase web app config (see README).
-   While these are placeholders, the dashboard runs in demo mode.
+   FIREBASE CONFIG: project calculetor-29a74 (web app).
+   These values identify the project. They are not secrets: access is controlled by
+   Firestore rules and Auth settings. See firestore.rules.
    ============================================================ */
 const FIREBASE_CONFIG = {
-  apiKey: "REPLACE_ME",
-  authDomain: "REPLACE_ME.firebaseapp.com",
-  projectId: "REPLACE_ME",
-  storageBucket: "REPLACE_ME.appspot.com",
-  messagingSenderId: "REPLACE_ME",
-  appId: "REPLACE_ME"
+  apiKey: "AIzaSyCnc5_GIoM7xMEra-gd3qtu2xO1BJMQcQQ",
+  authDomain: "calculetor-29a74.firebaseapp.com",
+  projectId: "calculetor-29a74",
+  storageBucket: "calculetor-29a74.firebasestorage.app",
+  messagingSenderId: "919929621094",
+  appId: "1:919929621094:web:bdfacb36e81da42e30fba7",
+  measurementId: "G-182QKDECNG"
 };
-const DEMO = FIREBASE_CONFIG.apiKey === "REPLACE_ME";
 const ALERT_THRESHOLD = 3;       // "Unknown number X called 3 times today"
 const TZ = "Africa/Nairobi";     // day boundaries for "today"
 const CALL_LIMIT = 300;
@@ -189,7 +183,6 @@ const state = {
   pairing: null,
   unsubs: [], deviceUnsubs: []
 };
-const DEMO_STORE = {};
 
 /* ---------- derived alerts ---------- */
 /** Unknown numbers (no saved name) that called the child at least `threshold` times today (incoming or missed). */
@@ -209,7 +202,7 @@ function unknownAlerts(calls, threshold = ALERT_THRESHOLD, now = Date.now()) {
 
 function currentDevice() { return state.devices.find(d => d.id === state.deviceId) || null; }
 
-/* ---------- Firebase loading (only in live mode) ---------- */
+/* ---------- Firebase loading ---------- */
 function loadScript(src) {
   return new Promise((resolve, reject) => {
     const s = document.createElement("script");
@@ -248,7 +241,6 @@ function clearDeviceSubs() {
 function subscribeFamily(fid) {
   clearSubs();
   state.familyId = fid;
-  if (DEMO) { renderAll(); return; }
   const fam = state.db.collection("families").doc(fid);
   state.unsubs.push(fam.onSnapshot(s => { state.family = s.data() || null; renderAll(); }));
   state.unsubs.push(fam.collection("devices").onSnapshot(s => {
@@ -270,13 +262,6 @@ function subscribeDevice() {
   state.calls = []; state.sms = []; state.sos = [];
   state.location = null; state.locHistory = [];
   if (!state.deviceId) { renderAll(); return; }
-  if (DEMO) {
-    const store = DEMO_STORE[state.deviceId];
-    state.calls = store.calls; state.sms = store.sms; state.sos = store.sos;
-    state.location = store.location; state.locHistory = store.locHistory;
-    renderAll();
-    return;
-  }
   const dev = state.db.collection("families").doc(state.familyId).collection("devices").doc(state.deviceId);
   state.deviceUnsubs.push(dev.collection("calls").orderBy("ts", "desc").limit(CALL_LIMIT).onSnapshot(s => {
     state.calls = s.docs.map(d => ({ id: d.id, ...d.data() })); renderAll();
@@ -295,14 +280,12 @@ function subscribeDevice() {
   }));
 }
 
-/* ---------- API (live or demo) ---------- */
+/* ---------- API ---------- */
 const Api = {
   async saveDevice(did, fields) {
-    if (DEMO) { Object.assign(currentDevice(), fields); return; }
     await state.db.collection("families").doc(state.familyId).collection("devices").doc(did).update(fields);
   },
   async acknowledgeSos(sid) {
-    if (DEMO) { const s = state.sos.find(x => x.id === sid); if (s) s.acknowledgedBy = "demo"; return; }
     await state.db.collection("families").doc(state.familyId).collection("devices").doc(state.deviceId)
       .collection("sos").doc(sid).update({ acknowledgedBy: state.user.uid, acknowledgedAt: firebase.firestore.FieldValue.serverTimestamp() });
   },
@@ -310,17 +293,17 @@ const Api = {
     const a = new Uint32Array(1); crypto.getRandomValues(a);
     const code = String(100000 + (a[0] % 900000));
     const expiresAt = Date.now() + 10 * 60000;
-    if (!DEMO) {
-      await state.db.collection("pairings").doc(code).set({
-        familyId: state.familyId,
-        createdBy: state.user.uid,
-        expiresAt: firebase.firestore.Timestamp.fromMillis(expiresAt)
-      });
-    }
+    await state.db.collection("pairings").doc(code).set({
+      familyId: state.familyId,
+      createdBy: state.user.uid,
+      expiresAt: firebase.firestore.Timestamp.fromMillis(expiresAt)
+    });
     return { code, expiresAt };
   },
   async createFamily(name) {
     const fid = state.db.collection("families").doc().id;
+    // Order matters: the rules check the family before accepting the parent record.
+    // Do not combine these into one batch, because a batch is checked against the old data.
     await state.db.collection("families").doc(fid).set({
       name, parentUids: [state.user.uid], createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -708,16 +691,7 @@ $("#formFamily").addEventListener("submit", async e => {
 });
 
 $("#btnSignOut").addEventListener("click", async () => {
-  if (DEMO) { location.reload(); return; }
   await state.auth.signOut();
-});
-
-$("#btnDemo").addEventListener("click", () => {
-  state.user = { uid: "demo", email: "demo@example.com" };
-  $("#whoami").textContent = "Demo parent";
-  subscribeFamily("demo");
-  subscribeDevice();
-  showView("app");
 });
 
 async function onAuthChanged(user) {
@@ -735,55 +709,8 @@ async function onAuthChanged(user) {
   showView("app");
 }
 
-/* ---------- demo data (used only while FIREBASE_CONFIG is placeholder) ---------- */
-function makeDemo() {
-  const now = Date.now(), m = 60000, h = 3600000;
-  DEMO_STORE["demo-1"] = {
-    calls: [
-      { id: "d1", number: "0772100200", name: "Mama", durationSec: 312, ts: now - 2 * h, type: "incoming" },
-      { id: "d2", number: "0758111222", name: "", durationSec: 0, ts: now - 3 * h, type: "missed" },
-      { id: "d3", number: "0778123456", name: "", durationSec: 0, ts: now - 5 * m, type: "missed" },
-      { id: "d4", number: "0778123456", name: "", durationSec: 0, ts: now - 15 * m, type: "incoming" },
-      { id: "d5", number: "0778123456", name: "", durationSec: 41, ts: now - 25 * m, type: "incoming" },
-      { id: "d6", number: "0701555666", name: "Auntie Grace", durationSec: 95, ts: now - 26 * h, type: "outgoing" },
-      { id: "d7", number: "0789000111", name: "", durationSec: 0, ts: now - 30 * h, type: "missed" },
-      { id: "d8", number: "Private", name: "", durationSec: 12, ts: now - 31 * h, type: "incoming" }
-    ],
-    sms: [
-      { id: "m1", address: "0772100200", name: "Mama", folder: "inbox", ts: now - 90 * m, body: null, bodyVisible: false },
-      { id: "m2", address: "0778123456", name: "", folder: "inbox", ts: now - 20 * m, body: null, bodyVisible: false },
-      { id: "m3", address: "0701555666", name: "Auntie Grace", folder: "sent", ts: now - 26 * h, body: null, bodyVisible: false }
-    ],
-    sos: [
-      { id: "s1", ts: now - 3 * h, withLocation: true, lat: 0.3476, lng: 32.5825, accuracyM: 12, acknowledgedBy: null }
-    ]
-  };
-  // Demo location: a short walk around central Kampala, one point every 2 minutes.
-  const walk = [[0.3476, 32.5825], [0.3481, 32.5833], [0.3490, 32.5841], [0.3496, 32.5852],
-                [0.3502, 32.5866], [0.3508, 32.5879], [0.3514, 32.5890], [0.3519, 32.5902]];
-  const locHistory = walk.map(([lat, lng], i) => ({
-    lat, lng, accuracyM: 8 + (i % 3) * 3, ts: now - (walk.length - 1 - i) * 2 * m
-  })).reverse();
-  DEMO_STORE["demo-1"].location = { ...locHistory[0] };
-  DEMO_STORE["demo-1"].locHistory = locHistory;
-  state.devices = [{
-    id: "demo-1", label: "Child phone (demo)", lastSeen: now - 4 * m, defaultSms: false, appVersion: "1.0.0",
-    alertThreshold: ALERT_THRESHOLD, sosContactPhone: "0700 000 000", locationSharing: true,
-    permissions: { callLog: true, sms: true, sendSms: true, contacts: true, location: true, backgroundLocation: true }
-  }];
-  state.deviceId = "demo-1";
-}
-
 /* ---------- startup ---------- */
 (async function main() {
-  if (DEMO) {
-    makeDemo();
-    $("#demoBanner").classList.remove("hidden");
-    $("#formAuth").classList.add("hidden");
-    $("#demoAuth").classList.remove("hidden");
-    showView("auth");
-    return;
-  }
   try {
     await initFirebase();
   } catch (e) {

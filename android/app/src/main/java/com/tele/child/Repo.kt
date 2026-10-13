@@ -15,7 +15,7 @@ import kotlinx.coroutines.tasks.await
 import java.util.UUID
 
 /**
- * Firestore layout (see firebase/firestore.rules):
+ * Firestore layout (see firestore.rules):
  *   families/{familyId}/devices/{deviceId}            device status, sosContactPhone (set by parent)
  *   families/{familyId}/devices/{deviceId}/calls/c{id} call metadata
  *   families/{familyId}/devices/{deviceId}/sms/s{id}   SMS metadata, body only when default SMS app

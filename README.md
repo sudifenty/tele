@@ -8,7 +8,7 @@ Tele does **not** support WhatsApp, record call audio, forward calls, hide its i
 |---|---|---|
 | **Child app** | Android app (Kotlin, Android 8.0+) on the child's phone. Visible icon, permanent supervision notice, openly requested permissions, optional location sharing. | `android/` |
 | **Parent dashboard** | Web dashboard on Firebase (Auth + Firestore). Shows call log, texts, alerts, SOS events, and live location. | `web/` (single file: `web/index.html`) |
-| **Security rules** | Firestore rules that limit each side to its own data. | `firebase/firestore.rules` |
+| **Security rules** | Firestore rules: each family's data is readable and writable only by that family's parents, and child phones write only their own device. | `firestore.rules` (repo root) |
 | **Single-file build** | Script that produces one HTML file for Vercel: the dashboard plus a read-only copy of the project source. | `scripts/build-single-file.py` |
 
 ---
@@ -31,10 +31,10 @@ If you see a 404 when opening `https://github.com/<you>/tele`, the repository ei
 
 | Requirement | Implementation |
 |---|---|
-| Visible icon | Launcher icon (shield) in `res/mipmap-anydpi-v26`. The app has a normal launcher activity. |
+| Visible icon | Launcher icon (shield) in `res/mipmap-anydpi-v26`. `HomeActivity` is the launcher, and it asks whether the phone is the parent's or the child's. |
 | Permanent foreground notification with the exact text *"This device is supervised by Dad - Call log and SMS visible to parent"* | `SupervisionService` runs as a foreground service. Its notification is ongoing, so it can't be swiped away. The text is in `res/values/strings.xml` (key `supervision_notice`). |
 | Permissions requested openly | `Permissions.SETUP` asks for `READ_CALL_LOG`, `READ_SMS`, `SEND_SMS`, `READ_CONTACTS` (plus `POST_NOTIFICATIONS` on Android 13+ so the notice can show). Each is a normal Android system dialog. |
-| Real-time location | `LocationService` is a foreground service with `foregroundServiceType="location"`. It shares the phone's location about once a minute while supervision is on. It needs `ACCESS_FINE_LOCATION`, then `ACCESS_BACKGROUND_LOCATION` (\"Allow all the time\"), and each is requested in a system dialog after a plain-language explanation. It shows its own visible notice: *\"Tele is sharing this phone's location with Dad now.\"* The parent can pause sharing from the **Live location** tab. The child's notice then changes to *\"Location sharing is paused by Dad.\"* |
+| Real-time location | `LocationService` is a foreground service with `foregroundServiceType="location"`. It shares the phone's location every 5 minutes while supervision is on. It needs `ACCESS_FINE_LOCATION`, then `ACCESS_BACKGROUND_LOCATION` (\"Allow all the time\"), and each is requested in a system dialog after a plain-language explanation. It shows its own visible notice: *\"Tele is sharing this phone's location with Dad now.\"* The parent can pause sharing from the **Live location** tab. The child's notice then changes to *\"Location sharing is paused by Dad.\"* |
 | Default SMS app, with a system dialog | `SmsRole.requestIntent()` uses `RoleManager.ROLE_SMS` (Android 10+) or `ACTION_CHANGE_DEFAULT` (older). Tele first shows its own dialog titled \"Set Tele as default SMS app?\", then Android's dialog, which the child must accept. |
 | SMS content only when default | `SmsReader.read(includeBody = SmsRole.isDefault())`. When Tele is not the default, the `body` column is never queried, and `body` is stored as `null`. |
 | Call log metadata | Number, saved name (from the call log cache, or Contacts if allowed), duration, time, and type: incoming, outgoing, missed, rejected, blocked, voicemail. |
@@ -63,6 +63,7 @@ If you see a 404 when opening `https://github.com/<you>/tele`, the repository ei
    firebase use --add        # select your project
    firebase deploy --only firestore:rules
    ```
+   To check the rules first, run the 24 emulator tests in `tests/firestore-rules/` (see its section below).
 5. In **Project settings → Your apps → Android**, register the package **`com.tele.child`** and download `google-services.json`.
 
 ### 2b. Child app (Android Studio)
@@ -79,13 +80,15 @@ If you see a 404 when opening `https://github.com/<you>/tele`, the repository ei
 
 ### 2c. Parent dashboard
 
+**On the parent's phone (Android):** open Tele, choose *This is the parent's phone*, and sign in with the same email and password as the web dashboard. The screen lists each linked phone with its latest location, updated live, and opens it in Maps. A phone linked as a child's phone can't open this screen.
+
 **Option 1: Vercel (single file, recommended).**
 - Set the Vercel project's **Root Directory** to `web`, so it serves `web/index.html`.
 - Or deploy the single file `tele-vercel/index.html`, which is built with `python3 scripts/build-single-file.py`. It has the same dashboard plus the project source viewer.
 - Add your Vercel domain under **Firebase → Authentication → Settings → Authorized domains**.
 
 **Option 2: local.**
-1. Open `web/index.html` and replace the `FIREBASE_CONFIG` placeholder values with your web config.
+1. `web/index.html` already has the web config for `calculetor-29a74` (the `FIREBASE_CONFIG` block). To use another project, replace those values.
 2. Test locally:
    ```bash
    cd web && python3 -m http.server 8080
@@ -94,13 +97,19 @@ If you see a 404 when opening `https://github.com/<you>/tele`, the repository ei
 
 Sign up as a parent, create your family, then click **Link a new phone**. Enter the 6-digit code on the child's phone within 10 minutes.
 
-**Demo mode:** while the config still says `REPLACE_ME`, the dashboard shows sample data, so you can see the layout without Firebase.
+The dashboard has no demo mode. It always connects to Firebase. Sign-in needs Email/Password enabled, and the dashboard's domain must be listed under **Authentication → Settings → Authorized domains** (for example `tele-j1l5.vercel.app`).
 
 ### 2d. Live location: one-time Firestore setup
 
 - Deploy the updated rules (they include `location` and `locationHistory`).
 - Firestore → **TTL policies** → create a policy on the **`locationHistory`** collection group with the field **`expiresAt`**. Points then delete automatically after 7 days.
-- At a one-minute interval that is about 1,440 location updates per device per day, and each update writes two documents (`current` and a history point), so about 2,880 Firestore writes per device per day. Check your Firestore usage against your plan. Adjust `UPDATE_INTERVAL_MS` in `LocationService.kt` to change the rate.
+- At the 5-minute interval that is 288 location updates per device per day, and each update writes two documents (`current` and a history point), so about 576 Firestore writes per device per day. Check your Firestore usage against your plan. Adjust `UPDATE_INTERVAL_MS` in `LocationService.kt` to change the rate.
+
+---
+
+### Testing the Firestore rules
+
+From the repo root, in one terminal: `firebase emulators:start --only firestore`. In another terminal: `cd tests/firestore-rules && npm install && npm test`. The tests check that a parent can read and write only their own family, that a child phone writes only its own device, and that nobody can point a parent record at another family.
 
 ---
 
@@ -120,7 +129,7 @@ families/{familyId}                   -> { name, parentUids: [uid], createdAt }
 pairings/{6-digit code}               -> { familyId, createdBy, expiresAt }   (10-minute link codes)
 ```
 
-Security rules (`firebase/firestore.rules`):
+Security rules (`firestore.rules`):
 - **Parents** can read their own family, including live location. They can change the device label, emergency number, alert threshold and location sharing switch, and they can acknowledge SOS events. They cannot edit calls, texts, location or SOS content.
 - **A child phone** can write only to the device record it created, using its own anonymous UID. It cannot read other families.
 - **`body` in SMS** must be `null` unless `bodyVisible == true`. The rules enforce this, so the server refuses text content from a phone that isn't the default SMS app.
@@ -142,7 +151,7 @@ The consent text and the continuous-sharing design have **not yet been reviewed*
 
 ## 5. Known limitations (please read before using)
 
-1. **Build status.** The Kotlin and Java sources compile with Gradle 8.7 and AGP 8.5.2 in this environment. The full APK build may need more memory than the build sandbox has (see `android/gradle.properties`, which sets `-Xmx3072m`; lower it on small machines). The **Firestore rules have not been run against the emulator**. Test them with `firebase emulators:start` before you rely on them.
+1. **Build status.** `assembleDebug` builds with Gradle 8.7 and AGP 8.5.2 (Firebase BOM 33.5.1). The build needs about 1 GB of memory for Gradle on small machines; on a normal computer the default in `android/gradle.properties` is fine. Release builds (R8 minify and resource shrinking) are configured but not yet tested.
 2. **Google Play.** Play restricts apps that read call logs or SMS, and it requires a policy declaration. Background location is also restricted. This build is meant for sideloading onto the family's own phones, not for Play Store distribution.
 3. **Android \"Restricted settings\".** On Android 13+, sideloaded apps may be blocked from SMS and call-log access until the owner allows it: *Settings → Apps → Tele → ⋮ → Allow restricted settings*. The child or parent may need to do this.
 4. **Default SMS app replaces the child's messaging app.** When Tele is the default, the child's usual texting app is replaced by Tele's basic compose screen. The child is told this in the consent text and in the default-SMS dialog.
@@ -156,6 +165,7 @@ The consent text and the continuous-sharing design have **not yet been reviewed*
 12. **Real-time location is sensitive.** Background location is one of the most restricted permissions on Google Play. It is also the most sensitive data here. Keep the child informed, and use the pause switch openly. Android's battery saving (Doze) can delay updates, and the location service may not restart after a reboot until the app is opened. Tele then shows a \"Location: partly\" or \"off\" status on the child's phone.
 13. **Legal.** This app processes a child's personal data. Check the rules that apply where you live. For Uganda, that includes the Data Protection and Privacy Act, 2019. Be open with your child about what the app does, which is what this design already does.
 
+14. **Shared Firebase project.** Tele uses the existing Firebase project `calculetor-29a74`, with the Android package `sudifenty.com.calculetor`. Deploying `firestore.rules` replaces the Firestore rules for that whole project, so check that no other app in it depends on the current rules before you deploy. Keep the child app's visible name as "Tele".
 ---
 
 ## 6. Project layout
@@ -174,7 +184,9 @@ tele/
 │       └── src/main/
 │           ├── AndroidManifest.xml
 │           ├── java/com/tele/child/
-│           │   ├── MainActivity.kt          setup steps, SOS button, status
+│           │   ├── HomeActivity.kt          launcher: parent's phone or child's phone
+│           │   ├── ParentActivity.kt        parent sign-in and live location list
+│           │   ├── MainActivity.kt          child setup steps, SOS button, status
 │           │   ├── PairActivity.kt          enter 6-digit link code
 │           │   ├── LogActivity.kt           \"what my parent can see\"
 │           │   ├── ComposeActivity.kt       minimal SMS send (default-SMS requirement)
@@ -191,9 +203,7 @@ tele/
 │           │   └── BootReceiver.kt, MmsReceiver.kt, RespondViaMessageService.kt
 │           └── res/                         layouts, strings, icon
 ├── web/
-│   └── index.html                     Parent dashboard (Firebase, demo mode included)
-├── firebase/
-│   └── firestore.rules                Security rules
+│   └── index.html                     Parent dashboard (live Firebase, no demo mode)
 └── scripts/
     └── build-single-file.py           Builds tele-vercel/index.html (one-file deliverable)
 ```

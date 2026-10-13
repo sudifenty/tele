@@ -1,24 +1,35 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("com.google.gms.google-services")   // needs app/google-services.json (see README)
+    id("com.google.gms.google-services")   // reads app/google-services.json
 }
 
 android {
-    namespace = "com.tele.child"
+    namespace = "com.tele.child"           // code package (R class, view binding); independent of applicationId
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.tele.child"
+        // Must match the package_name in app/google-services.json.
+        applicationId = "sudifenty.com.calculetor"
         minSdk = 26            // Android 8.0+
         targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
+
+        // Keep only the ABIs used by real phones (smaller download and install).
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true      // R8 code shrinking (release builds only)
+            isShrinkResources = true    // drop unused resources (requires minify)
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 
@@ -41,7 +52,8 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
 
-    implementation(platform("com.google.firebase:firebase-bom:33.1.2"))
+    implementation(platform("com.google.firebase:firebase-bom:33.5.1"))
+    implementation("com.google.firebase:firebase-analytics")
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
 
